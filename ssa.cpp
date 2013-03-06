@@ -1,5 +1,5 @@
 #include <iostream>
-#include "fastafile.cpp"
+#include "fastqfile.cpp"
 #include "assembly.cpp"
 #include "samfile.cpp"
 
@@ -10,15 +10,15 @@ char outpath[] = "asdf.txt";
 int main(int argc, char* argv[]){
     list<string> reads;
 
-    FastaFile fasta(argv[1]);
+    FastqFile fastq(argv[1]);
+    cout << "File Contents: " << endl;
+    fastq.print_contents();
 
-    Assembly assem(fasta);
+    Assembly assem(fastq);
     assem.assemble();
 
     SamFile sam(assem);
     sam.write(outpath);
-
-    cout << "hello world" << endl;
 
     return 0;
 }
