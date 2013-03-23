@@ -1,11 +1,12 @@
 #include <iostream>
 #include "fastqfile.cpp"
 #include "assembly.cpp"
-#include "samfile.cpp"
+#include "samtools-0.1.19/sam.h"
 
 using namespace std;
 
 char outpath[] = "asdf.txt";
+char inpath[] = "/home/audioman/Storage/BioInfo/reads/phix_100k.sam";
 
 int main(int argc, char* argv[]){
     list<string> reads;
@@ -17,8 +18,12 @@ int main(int argc, char* argv[]){
     Assembly assem(fastq);
     assem.assemble();
 
-    SamFile sam(assem);
-    sam.write(outpath);
+    samfile_t *fp_in = NULL;
+    fp_in = samopen(inpath, "r", 0);
+
+    if(NULL == fp_in){
+       printf("Could not read sam file"); 
+    }
 
     return 0;
 }
