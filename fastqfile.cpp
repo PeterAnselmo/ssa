@@ -4,23 +4,26 @@
 #include <fstream>
 #include <list>
 #include <string>
+#include <iostream>
 
 using namespace std;
 
-struct FQRead {
+struct SeqRead {
     string description;
     string seq;
     string plus;
     string qual;
+    int assembled_pos;
 };
 
 class FastqFile {
 public:
-    list<FQRead> reads;
+    list<SeqRead> reads;
 
 public:
     FastqFile(char* filename){
         import_from_file(filename);
+        trim_reads();
     }
     void import_from_file(char* filename){
         ifstream fh;
@@ -33,7 +36,7 @@ public:
 
         string line;
         int count = 0;
-        FQRead read;
+        SeqRead read;
         while(getline(fh, line)){
             if( count % 4 == 0 ){
                 read.description = line;
@@ -43,12 +46,20 @@ public:
                 read.plus = line;
             } else if (count % 4 == 3 ){
                 read.qual = line;
+                read.assembled_pos = -1;
                 reads.push_back(read);
             }
             ++count;
         }
 
         fh.close();
+    }
+
+    //for now, just take off first two bases, and only read 50
+    void trim_reads(){
+        for(auto &elem : reads ){
+            elem.seq = elem.seq.substr(2,30);
+        }
     }
 
     void print_contents(){
