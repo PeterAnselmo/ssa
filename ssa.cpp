@@ -20,14 +20,12 @@ int main(int argc, char* argv[]){
 
     cout << "\n\nReference:\n" << assem.reference;
 
-    /*
     samfile_t *fp_in = NULL;
     fp_in = samopen(inpath, "r", 0);
 
     if(NULL == fp_in){
        printf("Could not read sam file"); 
     }
-    */
 
     return 0;
 }

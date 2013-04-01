@@ -5,6 +5,7 @@
 #include <list>
 #include <string>
 #include <iostream>
+#include <stdlib.h>
 
 using namespace std;
 
