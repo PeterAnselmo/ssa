@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <list>
+#include "seqread.cpp"
 #include "fastqfile.cpp"
 #include <iomanip>
 
@@ -10,6 +11,7 @@ using namespace std;
 
 const bool DEBUGGING = true;
 const bool DEBUGGING2 = false;
+const bool DEBUGGING3 = false;
 //during sw this many bases on the right of the read will not be considered
 //this is to remove the bias against aligning the read past the consensus
 const int TAIL_SIZE = 5;
@@ -55,8 +57,10 @@ public:
                 list<SeqRead>::iterator high_iter;
 
                 int compare_size = read.seq.size() - TAIL_SIZE;
-                for(unsigned int i=reference.size() - compare_size; i<reference.size(); ++i){
+                for(unsigned int i=0; i<reference.size(); ++i){
                     int score = smith_waterman(reference.substr(i,compare_size), read.seq.substr(0,compare_size));
+                    int rev_score = smith_waterman(reference.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
+
                     if(DEBUGGING2){
                         cout << "Score at pos: " << i << ":" << score << endl;
                     }
@@ -64,6 +68,12 @@ public:
                         high_score = score;
                         high_iter = iter;
                         high_pos = i;
+                    }
+                    if( rev_score > MATCH_THRESHOLD && rev_score > high_score ){
+                        high_score = rev_score;
+                        high_iter = iter;
+                        high_pos = i;
+                        read.set_rev_comp();
                     }
                 }
                 //ignoring assemblies at position 0, likely means that right half of seq
@@ -102,15 +112,27 @@ public:
                     });
             }
         }
-        /*
-        for(int i=0; i<height; ++i){
-            for(int j=0; j<width; ++j){
-                cout << setw(5) << h[i][j] << " ";
+        if(DEBUGGING3){
+            for(int i=0; i<height; ++i){
+                for(int j=0; j<width; ++j){
+                    cout << setw(5) << h[i][j] << " ";
+                }
+                cout << endl;
             }
-            cout << endl;
         }
-        */
         return h[height-1][width-1];
+    }
+
+    void print_report(){
+        int num_assembled = 0;
+        for(auto &read : reads){
+            if( read.assembled_pos != -1 ){
+                ++num_assembled;
+            }
+        }
+        cout << "Assembled " << num_assembled << "/" << reads.size() << " reads ("
+             << static_cast<double>(num_assembled) * 100 /reads.size() << "%)" << endl;
+
     }
 
 private:

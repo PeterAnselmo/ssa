@@ -6,16 +6,9 @@
 #include <string>
 #include <iostream>
 #include <stdlib.h>
+#include "seqread.cpp"
 
 using namespace std;
-
-struct SeqRead {
-    string description;
-    string seq;
-    string plus;
-    string qual;
-    int assembled_pos;
-};
 
 class FastqFile {
 public:
