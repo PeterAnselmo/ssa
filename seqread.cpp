@@ -12,7 +12,8 @@ public:
     string seq;
     string plus;
     string qual;
-    int assembled_pos;
+    int assem_contig;
+    int assem_pos;
 
     string rev_comp(){
         string rev_comp = "";

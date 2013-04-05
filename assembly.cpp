@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <list>
+#include "contig.cpp"
 #include "seqread.cpp"
 #include "fastqfile.cpp"
 #include <iomanip>
@@ -15,10 +16,12 @@ const bool DEBUGGING3 = false;
 //during sw this many bases on the right of the read will not be considered
 //this is to remove the bias against aligning the read past the consensus
 const int TAIL_SIZE = 5;
+const int NUM_PASSES = 2;
 
 class Assembly {
 public:
     list<SeqRead> reads;
+    list<Contig> contigs;
     string reference;
 
 public:
@@ -29,60 +32,77 @@ public:
             exit(1);
         }
 
+        reference = "";
         reference = reads.front().seq;
-        reads.front().assembled_pos = 0;
+        reads.front().assem_pos = 0;
     }
     void assemble(){
         const int MATCH_THRESHOLD = 31;
 
-        bool mapped_read = true; //if any reads were mapped in the last iteration
-        while(mapped_read){
-            mapped_read = false;
+        for(int pass=0; pass<NUM_PASSES; ++pass){
+            Contig c(pass);
 
-            if(DEBUGGING) {
-                cout << "Restarting at the beginning of read list";
-            }
-            list<SeqRead>::iterator iter;
-            for( iter = reads.begin(); iter != reads.end(); ++iter){
-                SeqRead read = *iter;
-                cout << "Considering read: " << read.seq << endl;
-
-                //if this read was already mapped
-                if( read.assembled_pos != -1 ){
-                    continue;
-                }
-
-                int high_score = 0;
-                int high_pos = 0;
-                list<SeqRead>::iterator high_iter;
-
-                int compare_size = read.seq.size() - TAIL_SIZE;
-                for(unsigned int i=0; i<reference.size(); ++i){
-                    int score = smith_waterman(reference.substr(i,compare_size), read.seq.substr(0,compare_size));
-                    int rev_score = smith_waterman(reference.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
-
-                    if(DEBUGGING2){
-                        cout << "Score at pos: " << i << ":" << score << endl;
-                    }
-                    if( score > MATCH_THRESHOLD && score > high_score ){
-                        high_score = score;
-                        high_iter = iter;
-                        high_pos = i;
-                    }
-                    if( rev_score > MATCH_THRESHOLD && rev_score > high_score ){
-                        high_score = rev_score;
-                        high_iter = iter;
-                        high_pos = i;
-                        read.set_rev_comp();
-                    }
-                }
-                //ignoring assemblies at position 0, likely means that right half of seq
-                //aligned to before start of reference
-                if( high_score != 0 && high_pos != 0 ){
-                   assemble_read(*high_iter, high_pos);
-                   mapped_read = true;
+            //find the first unmapped read
+            for(auto &read : reads ){
+                if(read.assem_pos == -1){
+                    read.assem_pos = 0;
+                    read.assem_contig = pass;
+                    c.seq = read.seq;
+                    break;
                 }
             }
+
+
+            bool mapped_read = true; //if any reads were mapped in the last iteration
+            while(mapped_read){
+                mapped_read = false;
+
+                if(DEBUGGING) {
+                    cout << "Restarting at the beginning of read list";
+                }
+                list<SeqRead>::iterator iter;
+                for( iter = reads.begin(); iter != reads.end(); ++iter){
+                    SeqRead read = *iter;
+                    cout << "Considering read: " << read.seq << endl;
+
+                    //if this read was already mapped
+                    if( read.assem_pos != -1 ){
+                        continue;
+                    }
+
+                    int high_score = 0;
+                    int high_pos = 0;
+                    list<SeqRead>::iterator high_iter;
+
+                    int compare_size = read.seq.size() - TAIL_SIZE;
+                    for(unsigned int i=0; i<c.seq.size(); ++i){
+                        int score = smith_waterman(c.seq.substr(i,compare_size), read.seq.substr(0,compare_size));
+                        int rev_score = smith_waterman(c.seq.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
+
+                        if(DEBUGGING2){
+                            cout << "Score at pos: " << i << ":" << score << endl;
+                        }
+                        if( score > MATCH_THRESHOLD && score > high_score ){
+                            high_score = score;
+                            high_iter = iter;
+                            high_pos = i;
+                        }
+                        if( rev_score > MATCH_THRESHOLD && rev_score > high_score ){
+                            high_score = rev_score;
+                            high_iter = iter;
+                            high_pos = i;
+                            read.set_rev_comp();
+                        }
+                    }
+                    //ignoring assemblies at position 0, likely means that right half of seq
+                    //aligned to before start of reference
+                    if( high_score != 0 && high_pos != 0 ){
+                        assemble_read(c, *high_iter, high_pos);
+                        mapped_read = true;
+                    }
+                }
+            }
+            contigs.push_back(c);
         }
     }
 
@@ -126,7 +146,7 @@ public:
     void print_report(){
         int num_assembled = 0;
         for(auto &read : reads){
-            if( read.assembled_pos != -1 ){
+            if( read.assem_pos != -1 ){
                 ++num_assembled;
             }
         }
@@ -136,14 +156,15 @@ public:
     }
 
 private:
-    void assemble_read(SeqRead &read, int pos){
+    void assemble_read(Contig &c, SeqRead &read, int pos){
         if(DEBUGGING){
             cout << "Assembling Read: " << read.seq << " at " << pos << endl;
         }
-        read.assembled_pos = pos;
+        read.assem_pos = pos;
+        read.assem_contig = c.id;
 
-        //if the read extends to the right of the reference
-        unsigned int overlap_size = reference.size() - pos; 
+        //if the read extends to the right of the c.seq
+        unsigned int overlap_size = c.seq.size() - pos; 
         if(DEBUGGING){
             cout << "overlap size: " << overlap_size << endl;
             cout << "Read size: " << read.seq.size() << endl;
@@ -153,7 +174,7 @@ private:
             if(DEBUGGING){
                 cout << "adding " << new_seq << " to reference.\n";
             }
-            reference += new_seq;
+            c.seq += new_seq;
         }
     }
 

@@ -40,7 +40,7 @@ public:
                 read.plus = line;
             } else if (count % 4 == 3 ){
                 read.qual = line;
-                read.assembled_pos = -1;
+                read.assem_pos = -1;
                 reads.push_back(read);
             }
             ++count;
