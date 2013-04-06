@@ -15,8 +15,10 @@ const bool DEBUGGING2 = false;
 const bool DEBUGGING3 = false;
 //during sw this many bases on the right of the read will not be considered
 //this is to remove the bias against aligning the read past the consensus
-const int TAIL_SIZE = 5;
-const int NUM_PASSES = 2;
+//const int TAIL_SIZE = 5;
+const int MIN_OVERLAP = 15;
+const int NUM_PASSES = 3;
+const int MATCH_THRESHOLD = 26;
 
 class Assembly {
 public:
@@ -33,11 +35,8 @@ public:
         }
 
         reference = "";
-        reference = reads.front().seq;
-        reads.front().assem_pos = 0;
     }
     void assemble(){
-        const int MATCH_THRESHOLD = 31;
 
         for(int pass=0; pass<NUM_PASSES; ++pass){
             Contig c(pass);
@@ -51,6 +50,9 @@ public:
                     break;
                 }
             }
+            if(DEBUGGING) {
+                cout << "Starting new contig with sequence: " << c.seq << endl;
+            }
 
 
             bool mapped_read = true; //if any reads were mapped in the last iteration
@@ -58,41 +60,50 @@ public:
                 mapped_read = false;
 
                 if(DEBUGGING) {
-                    cout << "Restarting at the beginning of read list";
+                    cout << "Restarting at the beginning of read list\n";
                 }
                 list<SeqRead>::iterator iter;
                 for( iter = reads.begin(); iter != reads.end(); ++iter){
                     SeqRead read = *iter;
-                    cout << "Considering read: " << read.seq << endl;
 
                     //if this read was already mapped
                     if( read.assem_pos != -1 ){
                         continue;
                     }
 
+                    cout << "Considering read: " << read.seq << endl;
+
                     int high_score = 0;
                     int high_pos = 0;
                     list<SeqRead>::iterator high_iter;
 
-                    int compare_size = read.seq.size() - TAIL_SIZE;
                     for(unsigned int i=0; i<c.seq.size(); ++i){
-                        int score = smith_waterman(c.seq.substr(i,compare_size), read.seq.substr(0,compare_size));
-                        int rev_score = smith_waterman(c.seq.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
+                        int compare_size = min({read.seq.size(), c.seq.size()-i});
+                        //while not needed logically, this crashes if overlap size < 3
+                        //should figure out why
+                        if(compare_size < MIN_OVERLAP){
+                            break;
+                        }
+                        int score = smith_waterman_score(c.seq.substr(i,compare_size), read.seq.substr(0,compare_size));
+                        //int rev_score = smith_waterman_score(c.seq.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
 
                         if(DEBUGGING2){
                             cout << "Score at pos: " << i << ":" << score << endl;
+                         //   cout << "RC Score at pos: " << i << ":" << rev_score << endl;
                         }
                         if( score > MATCH_THRESHOLD && score > high_score ){
                             high_score = score;
                             high_iter = iter;
                             high_pos = i;
                         }
+                        /*
                         if( rev_score > MATCH_THRESHOLD && rev_score > high_score ){
                             high_score = rev_score;
                             high_iter = iter;
                             high_pos = i;
                             read.set_rev_comp();
                         }
+                        */
                     }
                     //ignoring assemblies at position 0, likely means that right half of seq
                     //aligned to before start of reference
@@ -106,14 +117,67 @@ public:
         }
     }
 
-    static int smith_waterman(string seq1, string seq2){
-        const int w_match = 2;
-        const int w_mismatch = -1;
-
+    static int smith_waterman_score(string seq1, string seq2){
         int width = seq1.size() + 1;
         int height = seq2.size() + 1;
+        if(DEBUGGING3){
+            cout << "Computing SW Score " << seq1 << ":" << seq2 << endl;
+        }
 
-        int h[height][width];
+        int **h;
+        h = new int*[height];
+        for(int i=0; i<=height; ++i){
+            h[i] = new int[width];
+        }
+
+        smith_waterman_matrix(seq1, seq2, h, height, width);
+
+        int score = h[height-1][width-1];
+        if(DEBUGGING3){
+            cout << "Score: " << score << endl;
+        }
+
+        return score;
+    }
+
+    void print_report(){
+        int num_assembled = 0;
+        for(auto &read : reads){
+            if( read.assem_pos != -1 ){
+                ++num_assembled;
+            }
+        }
+        cout << "Assembled " << num_assembled << "/" << reads.size() << " reads ("
+             << static_cast<double>(num_assembled) * 100 /reads.size() << "%)" << endl;
+
+    }
+
+private:
+    void assemble_read(Contig &c, SeqRead &read, int pos){
+        if(DEBUGGING){
+            cout << "Assembling Read: " << read.seq << " to contig " << c.id << " at " << pos << endl;
+        }
+        read.assem_pos = pos;
+        read.assem_contig = c.id;
+
+        //if the read extends to the right of the c.seq
+        unsigned int overlap_size = c.seq.size() - pos; 
+        if(DEBUGGING){
+            cout << "overlap size: " << overlap_size << endl;
+            cout << "Read size: " << read.seq.size() << endl;
+        }
+        if( overlap_size < read.seq.size() ){
+            string new_seq = read.seq.substr(overlap_size);
+            if(DEBUGGING){
+                cout << "adding " << new_seq << " to reference.\n";
+            }
+            c.seq += new_seq;
+        }
+    }
+
+    static void smith_waterman_matrix(const string &seq1, const string &seq2, int **h, int height, int width){
+        const int w_match = 2;
+        const int w_mismatch = -2;
 
         for(int i=0; i<height; ++i){
             h[i][0] = 0;
@@ -139,42 +203,6 @@ public:
                 }
                 cout << endl;
             }
-        }
-        return h[height-1][width-1];
-    }
-
-    void print_report(){
-        int num_assembled = 0;
-        for(auto &read : reads){
-            if( read.assem_pos != -1 ){
-                ++num_assembled;
-            }
-        }
-        cout << "Assembled " << num_assembled << "/" << reads.size() << " reads ("
-             << static_cast<double>(num_assembled) * 100 /reads.size() << "%)" << endl;
-
-    }
-
-private:
-    void assemble_read(Contig &c, SeqRead &read, int pos){
-        if(DEBUGGING){
-            cout << "Assembling Read: " << read.seq << " at " << pos << endl;
-        }
-        read.assem_pos = pos;
-        read.assem_contig = c.id;
-
-        //if the read extends to the right of the c.seq
-        unsigned int overlap_size = c.seq.size() - pos; 
-        if(DEBUGGING){
-            cout << "overlap size: " << overlap_size << endl;
-            cout << "Read size: " << read.seq.size() << endl;
-        }
-        if( overlap_size < read.seq.size() ){
-            string new_seq = read.seq.substr(overlap_size);
-            if(DEBUGGING){
-                cout << "adding " << new_seq << " to reference.\n";
-            }
-            c.seq += new_seq;
         }
     }
 

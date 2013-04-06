@@ -6,26 +6,35 @@
 using namespace std;
 
 char outpath[] = "asdf.txt";
-char inpath[] = "/home/audioman/Storage/BioInfo/reads/phix_100k.fastq";
+char inpath[] = "/home/audioman/Storage/BioInfo/reads/phix_10_by_hand.fastq";
 
 int main(int argc, char* argv[]){
     list<string> reads;
 
     FastqFile fastq(inpath);
+    /*
     cout << "File Contents: " << endl;
-//    fastq.print_contents();
+    fastq.print_contents();
+    */
 
     Assembly assem(fastq);
     assem.assemble();
 
-    cout << "\n\nReference:\n" << assem.reference;
+    for(auto &contig : assem.contigs){
+        cout << "Assembled Contig " << contig.id << ":\n" << contig.seq << endl;
+    }
 
+    assem.print_report();
+    //cout << "\n\nReference:\n" << assem.reference;
+
+    /*
     samfile_t *fp_in = NULL;
     fp_in = samopen(inpath, "r", 0);
 
     if(NULL == fp_in){
        printf("Could not read sam file"); 
     }
+    */
 
     return 0;
 }

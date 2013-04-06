@@ -9,16 +9,16 @@ using namespace std;
 int main(int argc, char* argv[]){
     string seq1 = "ACACACTATTGG";
     string seq2 = "ATGACANNNNNNAGCACACATTGG";
-    assert(Assembly::smith_waterman(seq1, seq2) == 20);
+    assert(Assembly::smith_waterman_score(seq1, seq2) == 20);
 
     seq2 = "ACACACTATTGG";
     seq1 = "ATGACANNNNNNAGCACACATTGG";
-    assert(Assembly::smith_waterman(seq1, seq2) == 20);
+    assert(Assembly::smith_waterman_score(seq1, seq2) == 20);
 
     seq1 = "ACACACTA";
     seq2 = "AGCACACA";
 
-    assert(Assembly::smith_waterman(seq1, seq2) == 12);
+    assert(Assembly::smith_waterman_score(seq1, seq2) == 12);
 
     SeqRead read;
     read.seq = "ATACGA";

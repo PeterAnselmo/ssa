@@ -1,0 +1,20 @@
+File Contents: 
+Starting new contig with sequence: CACACATTTTGTTCATGGTAGAGATTCGTC
+Restarting at the beginning of read list
+Considering read: CATTTGTTCATGGTAGAGATTCTTTGTTGA
+Assembling Read: CATTTGTTCATGGTAGAGATTCTTTGTTGA to contig 0 at 4
+overlap size: 26
+Read size: 30
+adding TTGA to reference.
+Restarting at the beginning of read list
+Starting new contig with sequence: 
+Restarting at the beginning of read list
+Starting new contig with sequence: 
+Restarting at the beginning of read list
+Assembled Contig 0:
+CACACATTTTGTTCATGGTAGAGATTCGTCTTGA
+Assembled Contig 1:
+
+Assembled Contig 2:
+
+Assembled 3/3 reads (100%)
