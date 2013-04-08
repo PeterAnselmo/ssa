@@ -6,7 +6,7 @@
 using namespace std;
 
 char outpath[] = "asdf.txt";
-char inpath[] = "/home/audioman/Storage/BioInfo/reads/phix_10_by_hand.fastq";
+char inpath[] = "/home/audioman/Storage/BioInfo/reads/phix_100k.fastq";
 
 int main(int argc, char* argv[]){
     list<string> reads;
@@ -21,7 +21,8 @@ int main(int argc, char* argv[]){
     assem.assemble();
 
     for(auto &contig : assem.contigs){
-        cout << "Assembled Contig " << contig.id << ":\n" << contig.seq << endl;
+        cout << "Assembled Contig " << contig.id << ":\n" << contig.get_seq() << endl;
+        cout << contig.get_qual() << endl;
     }
 
     assem.print_report();

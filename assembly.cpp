@@ -17,8 +17,8 @@ const bool DEBUGGING3 = false;
 //this is to remove the bias against aligning the read past the consensus
 //const int TAIL_SIZE = 5;
 const int MIN_OVERLAP = 15;
-const int NUM_PASSES = 3;
-const int MATCH_THRESHOLD = 26;
+const int CONTIG_CAP = 1000;
+const int MATCH_THRESHOLD = 40;
 
 class Assembly {
 public:
@@ -38,22 +38,28 @@ public:
     }
     void assemble(){
 
-        for(int pass=0; pass<NUM_PASSES; ++pass){
-            Contig c(pass);
+        int pass = 0;
+        while(pass < CONTIG_CAP){
+            Contig c(pass++);
 
             //find the first unmapped read
+            bool all_mapped = true;
             for(auto &read : reads ){
                 if(read.assem_pos == -1){
                     read.assem_pos = 0;
                     read.assem_contig = pass;
-                    c.seq = read.seq;
+                    c.set_seq(read.seq);
+                    all_mapped = false;
                     break;
                 }
             }
-            if(DEBUGGING) {
-                cout << "Starting new contig with sequence: " << c.seq << endl;
+            if( all_mapped ){
+                return;
             }
 
+            if(DEBUGGING) {
+                cout << "Starting new contig with sequence: " << c.get_seq() << endl;
+            }
 
             bool mapped_read = true; //if any reads were mapped in the last iteration
             while(mapped_read){
@@ -77,33 +83,30 @@ public:
                     int high_pos = 0;
                     list<SeqRead>::iterator high_iter;
 
-                    for(unsigned int i=0; i<c.seq.size(); ++i){
-                        int compare_size = min({read.seq.size(), c.seq.size()-i});
-                        //while not needed logically, this crashes if overlap size < 3
-                        //should figure out why
+                    for(unsigned int i=0; i<c.size(); ++i){
+                        int compare_size = min({read.seq.size(), c.size()-i});
+
                         if(compare_size < MIN_OVERLAP){
                             break;
                         }
-                        int score = smith_waterman_score(c.seq.substr(i,compare_size), read.seq.substr(0,compare_size));
-                        //int rev_score = smith_waterman_score(c.seq.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
+                        int score = smith_waterman_score(c.substr(i,compare_size), read.seq.substr(0,compare_size));
+                        int rev_score = smith_waterman_score(c.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
 
                         if(DEBUGGING2){
                             cout << "Score at pos: " << i << ":" << score << endl;
-                         //   cout << "RC Score at pos: " << i << ":" << rev_score << endl;
+                            cout << "RC Score at pos: " << i << ":" << rev_score << endl;
                         }
                         if( score > MATCH_THRESHOLD && score > high_score ){
                             high_score = score;
                             high_iter = iter;
                             high_pos = i;
                         }
-                        /*
                         if( rev_score > MATCH_THRESHOLD && rev_score > high_score ){
                             high_score = rev_score;
                             high_iter = iter;
                             high_pos = i;
                             read.set_rev_comp();
                         }
-                        */
                     }
                     //ignoring assemblies at position 0, likely means that right half of seq
                     //aligned to before start of reference
@@ -126,7 +129,7 @@ public:
 
         int **h;
         h = new int*[height];
-        for(int i=0; i<=height; ++i){
+        for(int i=0; i<height; ++i){
             h[i] = new int[width];
         }
 
@@ -136,6 +139,11 @@ public:
         if(DEBUGGING3){
             cout << "Score: " << score << endl;
         }
+
+        for(int i=0; i<height; ++i){
+            delete[] h[i];
+        }
+        delete[] h;
 
         return score;
     }
@@ -161,17 +169,20 @@ private:
         read.assem_contig = c.id;
 
         //if the read extends to the right of the c.seq
-        unsigned int overlap_size = c.seq.size() - pos; 
+        unsigned int overlap_size = c.size() - pos; 
         if(DEBUGGING){
             cout << "overlap size: " << overlap_size << endl;
             cout << "Read size: " << read.seq.size() << endl;
         }
         if( overlap_size < read.seq.size() ){
+            for(unsigned int i=0; i<overlap_size; ++i){
+                c.inc_qual(pos+i);
+            }
             string new_seq = read.seq.substr(overlap_size);
             if(DEBUGGING){
                 cout << "adding " << new_seq << " to reference.\n";
             }
-            c.seq += new_seq;
+            c.append(new_seq);
         }
     }
 
