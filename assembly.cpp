@@ -4,8 +4,9 @@
 #include <algorithm>
 #include <list>
 #include "contig.cpp"
-#include "seqread.cpp"
+#include "read.cpp"
 #include "fastqfile.cpp"
+#include "sw_matrix.cpp"
 #include <iomanip>
 
 using namespace std;
@@ -16,13 +17,15 @@ const bool DEBUGGING3 = false;
 //during sw this many bases on the right of the read will not be considered
 //this is to remove the bias against aligning the read past the consensus
 //const int TAIL_SIZE = 5;
-const int MIN_OVERLAP = 15;
-const int CONTIG_CAP = 1000;
+
+//number of bases in common with right side of consensus & left side of read
+const int MIN_OVERLAP = 20;
+const unsigned int CONTIG_CAP = 1000;
 const int MATCH_THRESHOLD = 40;
 
 class Assembly {
 public:
-    list<SeqRead> reads;
+    list<Read> reads;
     list<Contig> contigs;
     string reference;
 
@@ -36,41 +39,48 @@ public:
 
         reference = "";
     }
-    void assemble(){
 
-        int pass = 0;
+    //phase 1 - assemble contigs based on perfect overlap in reads - no mismatch allowed
+    void assemble_perfect_contigs(){
+
+        unsigned int pass = 0;
+        //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
         while(pass < CONTIG_CAP){
             Contig c(pass++);
 
-            //find the first unmapped read
+            //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
             for(auto &read : reads ){
-                if(read.assem_pos == -1){
+                if(read.assem_pos == -1 && read.seq.find('N') == string::npos){
                     read.assem_pos = 0;
-                    read.assem_contig = pass;
+                    read.assem_contig = c.get_id();
+                    read.gapped_seq = read.seq;
                     c.set_seq(read.seq);
                     all_mapped = false;
                     break;
                 }
             }
+
+            //if all the reads were mapped before hitting the contig cap, exit
             if( all_mapped ){
                 return;
             }
 
             if(DEBUGGING) {
-                cout << "Starting new contig with sequence: " << c.get_seq() << endl;
+                cout << "Starting new contig with sequence:\n" << c.get_seq() << endl;
             }
 
-            bool mapped_read = true; //if any reads were mapped in the last iteration
+            //if any reads were mapped in the last iteration
+            bool mapped_read = true;
             while(mapped_read){
                 mapped_read = false;
 
                 if(DEBUGGING) {
                     cout << "Restarting at the beginning of read list\n";
                 }
-                list<SeqRead>::iterator iter;
-                for( iter = reads.begin(); iter != reads.end(); ++iter){
-                    SeqRead read = *iter;
+
+                //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
+                for(auto &read : reads ){
 
                     //if this read was already mapped
                     if( read.assem_pos != -1 ){
@@ -79,30 +89,79 @@ public:
 
                     cout << "Considering read: " << read.seq << endl;
 
-                    int high_score = 0;
-                    int high_pos = 0;
-                    list<SeqRead>::iterator high_iter;
-
-                    for(unsigned int i=0; i<c.size(); ++i){
-                        int compare_size = min({read.seq.size(), c.size()-i});
-
-                        if(compare_size < MIN_OVERLAP){
-                            break;
-                        }
-                        int score = smith_waterman_score(c.substr(i,compare_size), read.seq.substr(0,compare_size));
-                        int rev_score = smith_waterman_score(c.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
+                    unsigned int end_pos = c.size() - MIN_OVERLAP;
+                    for(unsigned int i=0; i<end_pos; ++i){
+                        
+                        unsigned int compare_size = min({read.size(), c.size()-i});
 
                         if(DEBUGGING2){
-                            cout << "Score at pos: " << i << ":" << score << endl;
-                            cout << "RC Score at pos: " << i << ":" << rev_score << endl;
+                            cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read.substr(0,compare_size) << endl;
                         }
-                        if( score > MATCH_THRESHOLD && score > high_score ){
-                            high_score = score;
+                        if( c.substr(i,compare_size) == read.substr(0,compare_size) ){
+                            assemble_perfect_read(c, read, i);
+                            mapped_read = true;
+                            break;
+                        }
+                        if( c.substr(i,compare_size) == read.rev_comp().substr(0,compare_size) ){
+                            read.set_rev_comp();
+                            assemble_perfect_read(c, read, i);
+                            mapped_read = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            contigs.push_back(c);
+        }
+    }
+
+    //phase 2 - align reads to contigs, allowing only very high quality matches
+    void assemble_contigs(){
+
+        //loop over all the contigs, we'll try aligning more reads to each one
+        for(auto &c : contigs ){
+
+            //if any reads were mapped in the last iteration
+            bool mapped_read = true;
+            while(mapped_read){
+                mapped_read = false;
+
+                if(DEBUGGING) {
+                    cout << "Restarting at the beginning of read list\n";
+                }
+
+                //loop over all unmatched reads
+                list<Read>::iterator iter;
+                for( iter = reads.begin(); iter != reads.end(); ++iter){
+                    Read read = *iter;
+
+                    //if this read was already mapped
+                    if( read.assem_pos != -1 ){
+                        continue;
+                    }
+
+                    int high_score = 0;
+                    int high_pos = 0;
+                    list<Read>::iterator high_iter;
+
+                    unsigned int end_pos = c.size() - MIN_OVERLAP;
+                    for(unsigned int i=0; i<end_pos; ++i){
+                        unsigned int compare_size = min({read.size(), c.size()-i});
+
+                        SWMatrix sw(c.substr(i,compare_size), read.substr(0,compare_size));
+                        SWMatrix rev_sw(c.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
+
+                        if(DEBUGGING2){
+                            cout << "Score at pos: " << i << ":" << sw.score() << endl;
+                            cout << "RC Score at pos: " << i << ":" << rev_sw.score() << endl;
+                        }
+                        if( sw.score() > MATCH_THRESHOLD && sw.score() > high_score ){
+                            high_score = sw.score();
                             high_iter = iter;
                             high_pos = i;
                         }
-                        if( rev_score > MATCH_THRESHOLD && rev_score > high_score ){
-                            high_score = rev_score;
+                        if( rev_sw.score() > MATCH_THRESHOLD && rev_sw.score() > high_score ){
+                            high_score = rev_sw.score();
                             high_iter = iter;
                             high_pos = i;
                             read.set_rev_comp();
@@ -116,40 +175,12 @@ public:
                     }
                 }
             }
-            contigs.push_back(c);
-        }
-    }
-
-    static int smith_waterman_score(string seq1, string seq2){
-        int width = seq1.size() + 1;
-        int height = seq2.size() + 1;
-        if(DEBUGGING3){
-            cout << "Computing SW Score " << seq1 << ":" << seq2 << endl;
         }
 
-        int **h;
-        h = new int*[height];
-        for(int i=0; i<height; ++i){
-            h[i] = new int[width];
-        }
-
-        smith_waterman_matrix(seq1, seq2, h, height, width);
-
-        int score = h[height-1][width-1];
-        if(DEBUGGING3){
-            cout << "Score: " << score << endl;
-        }
-
-        for(int i=0; i<height; ++i){
-            delete[] h[i];
-        }
-        delete[] h;
-
-        return score;
     }
 
     void print_report(){
-        int num_assembled = 0;
+        unsigned int num_assembled = 0;
         for(auto &read : reads){
             if( read.assem_pos != -1 ){
                 ++num_assembled;
@@ -161,24 +192,31 @@ public:
     }
 
 private:
-    void assemble_read(Contig &c, SeqRead &read, int pos){
+    void assemble_read(Contig &c, Read &read, unsigned int pos){
+        unsigned int overlap_size = min({read.size(), c.size()-pos});
+
         if(DEBUGGING){
             cout << "Assembling Read: " << read.seq << " to contig " << c.id << " at " << pos << endl;
         }
         read.assem_pos = pos;
         read.assem_contig = c.id;
 
+        SWMatrix sw(c.substr(pos, read.size()), read.seq);
+        sw.gap_seqs();
+        read.gapped_seq = sw.get_gapped_seq2();
+
         //if the read extends to the right of the c.seq
-        unsigned int overlap_size = c.size() - pos; 
-        if(DEBUGGING){
-            cout << "overlap size: " << overlap_size << endl;
-            cout << "Read size: " << read.seq.size() << endl;
-        }
-        if( overlap_size < read.seq.size() ){
-            for(unsigned int i=0; i<overlap_size; ++i){
-                c.inc_qual(pos+i);
+        if( overlap_size < read.gapped_seq.size() ){
+            if(DEBUGGING){
+                cout << "overlap size: " << overlap_size << endl;
+                cout << "Read size: " << read.seq.size() << endl;
             }
-            string new_seq = read.seq.substr(overlap_size);
+            for(unsigned int i=0; i<overlap_size; ++i){
+                if(c.get_seq()[pos+i] == read.gapped_seq[i] ){
+                    c.inc_qual(pos+i);
+                }
+            }
+            string new_seq = read.gapped_seq.substr(overlap_size);
             if(DEBUGGING){
                 cout << "adding " << new_seq << " to reference.\n";
             }
@@ -186,33 +224,34 @@ private:
         }
     }
 
-    static void smith_waterman_matrix(const string &seq1, const string &seq2, int **h, int height, int width){
-        const int w_match = 2;
-        const int w_mismatch = -2;
+    void assemble_perfect_read(Contig &c, Read &read, unsigned int pos){
+        unsigned int overlap_size = min({read.size(), c.size()-pos});
 
-        for(int i=0; i<height; ++i){
-            h[i][0] = 0;
+        if(DEBUGGING){
+            cout << "Assembling Read: " << read.seq << " to contig " << c.id << " at " << pos
+                 << "overlap size: " << overlap_size << endl;
         }
-        for(int j=0; j<width; ++j){
-            h[0][j] = 0;
+
+        //assemble the read here
+        read.assem_pos = pos;
+        read.assem_contig = c.id;
+        read.gapped_seq = read.seq;
+
+        //increment the quality for all of the overlapping bases at the right of the contig
+        for(unsigned int j=0; j<overlap_size; ++j){
+            c.inc_qual(pos+j);
         }
-        for(int i=1; i<height; i++){
-            for(int j=1; j<width; ++j){
-                int w = (seq1[j-1] == seq2[i-1]) ? w_match : w_mismatch;
-                h[i][j] = max({
-                    0,
-                    h[i-1][j-1] + w, //match, mismatch
-                    h[i-1][j] + w_mismatch, //deletion
-                    h[i][j-1] + w_mismatch //insertion
-                    });
+
+        if( overlap_size < read.gapped_seq.size() ){
+            string new_seq = read.seq.substr(overlap_size);
+
+            if(DEBUGGING){
+                cout << "adding " << new_seq << " to reference, overlap size: " << overlap_size << ".\n";
             }
-        }
-        if(DEBUGGING3){
-            for(int i=0; i<height; ++i){
-                for(int j=0; j<width; ++j){
-                    cout << setw(5) << h[i][j] << " ";
-                }
-                cout << endl;
+            c.append(new_seq);
+
+            if(DEBUGGING){
+                cout << "New Reference:\n" << c.get_seq() << endl;
             }
         }
     }

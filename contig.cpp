@@ -19,47 +19,43 @@ public:
         id = new_id;
         set_seq(new_seq);
     }
-    string get_seq(){
+
+    const int get_id() const{
+        return id;
+    }
+
+    const string get_seq() const{
         return seq;
     }
+
     void set_seq(string new_seq){
         seq = new_seq;
         qual = "";
         for(unsigned int i=0; i< seq.size(); ++i){
-           qual += "1";
+           qual += "!";
         }
     }
-    string get_qual(){
+
+    const string get_qual() const {
         return qual;
     }
     
-    string::size_type size(){
+    const string::size_type size(){
         return seq.size();
     }
-    string substr(int start, int length){
+    const string substr(int start, int length){
         return seq.substr(start, length);
     }
     
     void append(string new_seq){
         seq += new_seq;
         for(unsigned int i=0; i< new_seq.size(); ++i){
-           qual += "1";
+           qual += "!";
         }
     }
 
     void inc_qual(int pos){
-        string scores = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-        char current_score = qual[pos];
-        if( current_score == 'Z' ){
-            return;
-        }
-        string::size_type current_pos = scores.find(current_score);
-        if( current_pos == string::npos ){
-            cout << "Error incrementing quality value";
-            exit(1);
-        }
-        qual[pos] = scores[++current_pos];
+        qual[pos] = qual[pos] + 1;
     }
 };
 

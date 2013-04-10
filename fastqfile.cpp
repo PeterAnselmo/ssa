@@ -6,13 +6,16 @@
 #include <string>
 #include <iostream>
 #include <stdlib.h>
-#include "seqread.cpp"
+#include "read.cpp"
 
 using namespace std;
 
+//number of bases to delete off both ends of the read
+const int TRIM_SIZE = 2;
+
 class FastqFile {
 public:
-    list<SeqRead> reads;
+    list<Read> reads;
 
 public:
     FastqFile(char* filename){
@@ -30,7 +33,7 @@ public:
 
         string line;
         int count = 0;
-        SeqRead read;
+        Read read;
         while(getline(fh, line)){
             if( count % 4 == 0 ){
                 read.description = line;
@@ -49,10 +52,9 @@ public:
         fh.close();
     }
 
-    //for now, just take off first two bases, and only read 50
     void trim_reads(){
         for(auto &elem : reads ){
-            elem.seq = elem.seq.substr(2,30);
+            elem.seq = elem.seq.substr(TRIM_SIZE, elem.seq.size()-2*TRIM_SIZE);
         }
     }
 

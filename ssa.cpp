@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include "fastqfile.cpp"
 #include "assembly.cpp"
 #include "samtools-0.1.19/sam.h"
@@ -6,10 +7,10 @@
 using namespace std;
 
 char outpath[] = "asdf.txt";
-char inpath[] = "/home/audioman/Storage/BioInfo/reads/phix_100k.fastq";
+char inpath[] = "/home/audioman/Storage/BioInfo/reads/glados_758/phix_10k.fastq";
+//char inpath[] = "/home/audioman/Storage/BioInfo/reads/illumina_phix/phix_10_by_hand.fastq";
 
 int main(int argc, char* argv[]){
-    list<string> reads;
 
     FastqFile fastq(inpath);
     /*
@@ -18,14 +19,35 @@ int main(int argc, char* argv[]){
     */
 
     Assembly assem(fastq);
-    assem.assemble();
+    assem.assemble_perfect_contigs();
+//    assem.assemble_contigs();
 
-    for(auto &contig : assem.contigs){
-        cout << "Assembled Contig " << contig.id << ":\n" << contig.get_seq() << endl;
+    //sort the reads before displaying below contigs
+    assem.reads.sort([](const Read &r1, const Read &r2){ return r1.assem_pos < r2.assem_pos; });
+
+    for(const auto &contig : assem.contigs){
+        cout << "Assembled Contig " << contig.get_id() << ":\n" << contig.get_seq() << endl;
         cout << contig.get_qual() << endl;
+        for(const auto &read : assem.reads){
+            if(read.assem_contig != contig.get_id()){
+                continue;
+            }
+            for(int i=0; i<read.assem_pos; ++i){
+                cout << " ";
+            }
+            cout << read.gapped_seq << endl;
+
+        }
     }
 
     assem.print_report();
+    cout << endl << endl;
+    
+    /*
+    for(const auto &read : assem.reads){
+        printf("read- seq:%s | c: %d | pos: %d\n", read.gapped_seq.c_str(), read.assem_contig, read.assem_pos);
+    }
+    */
     //cout << "\n\nReference:\n" << assem.reference;
 
     /*

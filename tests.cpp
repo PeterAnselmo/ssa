@@ -7,20 +7,24 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-    string seq1 = "ACACACTATTGG";
-    string seq2 = "ATGACANNNNNNAGCACACATTGG";
-    assert(Assembly::smith_waterman_score(seq1, seq2) == 20);
 
-    seq2 = "ACACACTATTGG";
-    seq1 = "ATGACANNNNNNAGCACACATTGG";
-    assert(Assembly::smith_waterman_score(seq1, seq2) == 20);
+    /*
+    SWMatrix sw("ACACACTATTGG", "ATGACANNNNNNAGCACACATTGG");
+    assert(sw.score() == 18);
 
-    seq1 = "ACACACTA";
-    seq2 = "AGCACACA";
+    SWMatrix sw2("ATGACANNNNNNAGCACACATTGG", "ACACACTATTGG");
+    assert(sw2.score() == 18);
+    */
 
-    assert(Assembly::smith_waterman_score(seq1, seq2) == 12);
+    SWMatrix sw3("ACACACTA", "AGCACACA");
+    sw3.print_matrix();
+    sw3.gap_seqs();
+    cout << "Gapped Seqs:\n";
+    cout << sw3.get_gapped_seq1() << endl;
+    cout << sw3.get_gapped_seq2() << endl;
+    assert(sw3.score() == 10);
 
-    SeqRead read;
+    Read read;
     read.seq = "ATACGA";
     assert(read.rev_comp() == "TCGTAT");
 
