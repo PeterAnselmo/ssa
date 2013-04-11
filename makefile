@@ -1,5 +1,5 @@
-CC = g++ --std=c++0x -g -O0 -Wall #debugging
-#CC = g++ --std=c++0x -O3 -Wall
+#CC = g++ --std=c++0x -g -O0 -Wall #debugging
+CC = g++ --std=c++0x -O3 -Wall
 all:ssa tests
 tests:tests.cpp read.cpp sw_matrix.cpp contig.cpp fastqfile.cpp assembly.cpp samfile.cpp
 	$(CC) -o tests tests.cpp

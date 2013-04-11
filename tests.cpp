@@ -25,11 +25,11 @@ int main(int argc, char* argv[]){
     assert(sw3.score() == 10);
 
     Read read;
-    read.seq = "ATACGA";
+    read.seq("ATACGA");
     assert(read.rev_comp() == "TCGTAT");
 
     read.set_rev_comp();
-    assert(read.seq == "TCGTAT");
+    assert(read.seq() == "TCGTAT");
 
     cout << "All tests passed." << endl;
 

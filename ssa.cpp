@@ -20,16 +20,17 @@ int main(int argc, char* argv[]){
 
     Assembly assem(fastq);
     assem.assemble_perfect_contigs();
+    assem.trim_contigs();
 //    assem.assemble_contigs();
 
     //sort the reads before displaying below contigs
     assem.reads.sort([](const Read &r1, const Read &r2){ return r1.assem_pos < r2.assem_pos; });
 
     for(const auto &contig : assem.contigs){
-        cout << "Assembled Contig " << contig.get_id() << ":\n" << contig.get_seq() << endl;
-        cout << contig.get_qual() << endl;
+        cout << "Assembled Contig " << contig.id() << ":\n" << contig.seq() << endl;
+        cout << contig.qual() << endl;
         for(const auto &read : assem.reads){
-            if(read.assem_contig != contig.get_id()){
+            if(read.assem_contig != contig.id()){
                 continue;
             }
             for(int i=0; i<read.assem_pos; ++i){

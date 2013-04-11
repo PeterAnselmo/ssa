@@ -14,14 +14,15 @@ using namespace std;
 const int TRIM_SIZE = 2;
 
 class FastqFile {
-public:
-    list<Read> reads;
+private:
+    list<Read> _reads;
 
 public:
     FastqFile(char* filename){
         import_from_file(filename);
         trim_reads();
     }
+
     void import_from_file(char* filename){
         ifstream fh;
         fh.open(filename);
@@ -36,15 +37,15 @@ public:
         Read read;
         while(getline(fh, line)){
             if( count % 4 == 0 ){
-                read.description = line;
+                read.description(line);
             } else if (count % 4 == 1 ){
-                read.seq = line;
+                read.seq(line);
             } else if (count % 4 == 2 ){
-                read.plus = line;
+                read.plus(line);
             } else if (count % 4 == 3 ){
-                read.qual = line;
+                read.qual(line);
                 read.assem_pos = -1;
-                reads.push_back(read);
+                _reads.push_back(read);
             }
             ++count;
         }
@@ -53,17 +54,21 @@ public:
     }
 
     void trim_reads(){
-        for(auto &elem : reads ){
-            elem.seq = elem.seq.substr(TRIM_SIZE, elem.seq.size()-2*TRIM_SIZE);
+        for(auto &read : _reads ){
+            read.seq(read.seq().substr(TRIM_SIZE, read.seq().size()-2*TRIM_SIZE));
         }
     }
 
+    const list<Read> reads() const{
+        return _reads;
+    }
+
     void print_contents(){
-        for(const auto read : reads ){
-            printf("%s\n%s\n%s\n%s\n", read.description.c_str(), 
-                    read.seq.c_str(), 
-                    read.plus.c_str(), 
-                    read.qual.c_str());
+        for(const auto read : _reads ){
+            printf("%s\n%s\n%s\n%s\n", read.description().c_str(), 
+                    read.seq().c_str(), 
+                    read.plus().c_str(), 
+                    read.qual().c_str());
         }
     }
 };

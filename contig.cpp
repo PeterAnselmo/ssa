@@ -8,54 +8,71 @@ using namespace std;
 
 class Contig {
 private:
-    string seq;
-    string qual;
+    string _seq;
+    string _qual;
+    unsigned int _id;
+
 public:
-    int id;
 
     Contig(){}
-    Contig(int new_id){id = new_id;}
-    Contig(int new_id, string new_seq){
-        id = new_id;
-        set_seq(new_seq);
+    Contig(int id){_id = id;}
+    Contig(int id, string new_seq){
+        _id = id;
+        seq(new_seq);
     }
 
-    const int get_id() const{
-        return id;
+    const unsigned int id() const{
+        return _id;
     }
 
-    const string get_seq() const{
-        return seq;
+    const string seq() const{
+        return _seq;
     }
 
-    void set_seq(string new_seq){
-        seq = new_seq;
-        qual = "";
-        for(unsigned int i=0; i< seq.size(); ++i){
-           qual += "!";
+    void seq(string seq){
+        _seq = seq;
+        _qual = "";
+        for(unsigned int i=0; i< _seq.size(); ++i){
+           _qual += "!";
         }
     }
 
-    const string get_qual() const {
-        return qual;
+    const string qual() const {
+        return _qual;
     }
     
     const string::size_type size(){
-        return seq.size();
+        return _seq.size();
     }
+
     const string substr(int start, int length){
-        return seq.substr(start, length);
+        return _seq.substr(start, length);
     }
     
-    void append(string new_seq){
-        seq += new_seq;
-        for(unsigned int i=0; i< new_seq.size(); ++i){
-           qual += "!";
+    void prepend(string seq){
+        _seq = seq + _seq;
+        for(unsigned int i=0; i< seq.size(); ++i){
+           _qual = "!" + _qual;
+        }
+    }
+
+    void append(string seq){
+        _seq += seq;
+        for(unsigned int i=0; i< seq.size(); ++i){
+           _qual += "!";
         }
     }
 
     void inc_qual(int pos){
-        qual[pos] = qual[pos] + 1;
+        _qual[pos] = _qual[pos] + 1;
+    }
+
+    void unshift_aligned_reads(unsigned int distance, list<Read> &reads){
+        for(auto &read : reads){
+            if(read.assembled() && read.assem_contig == _id){
+                read.assem_pos += distance;
+            }
+        }
     }
 };
 
