@@ -29,12 +29,14 @@ public:
     const bool assembled() const{
         return _assembled;
     }
-
     void assemble(unsigned int contig_id, unsigned int pos){
         _assembled = true;
         assem_contig = contig_id;
         assem_pos = pos;
         gapped_seq = _seq;
+    }
+    void unassemble(){
+        _assembled = false;
     }
 
     const string description() const{

@@ -7,7 +7,7 @@
 using namespace std;
 
 char outpath[] = "asdf.txt";
-char inpath[] = "/home/audioman/Storage/BioInfo/reads/glados_758/phix_10k.fastq";
+char inpath[] = "/home/audioman/Storage/BioInfo/reads/glados_758/phix_100k.fastq";
 //char inpath[] = "/home/audioman/Storage/BioInfo/reads/illumina_phix/phix_10_by_hand.fastq";
 
 int main(int argc, char* argv[]){
@@ -30,14 +30,12 @@ int main(int argc, char* argv[]){
         cout << "Assembled Contig " << contig.id() << ":\n" << contig.seq() << endl;
         cout << contig.qual() << endl;
         for(const auto &read : assem.reads){
-            if(read.assem_contig != contig.id()){
-                continue;
+            if(read.assembled() && read.assem_contig == contig.id()){
+                for(int i=0; i<read.assem_pos; ++i){
+                    cout << " ";
+                }
+                cout << read.gapped_seq << endl;
             }
-            for(int i=0; i<read.assem_pos; ++i){
-                cout << " ";
-            }
-            cout << read.gapped_seq << endl;
-
         }
     }
 

@@ -20,7 +20,7 @@ const int MIN_OVERLAP = 20;
 
 //max number of initial perfect match contigs to assemble
 const unsigned int CONTIG_CAP = 1000;
-
+const unsigned int CONTIG_TRIM_QUALITY = 34;
 const int MATCH_THRESHOLD = 40;
 
 class Assembly {
@@ -199,6 +199,23 @@ public:
     }
 
     void trim_contigs(){
+        list<Contig>::iterator iter = contigs.begin();
+        while(iter != contigs.end()){
+            iter->trim(CONTIG_TRIM_QUALITY, reads);
+            if(iter->size() == 0){
+                if(DEBUGGING){
+                    cout << "Deleting low-quality contig: " << iter->id() << endl;
+                }
+                for(auto &read : reads){
+                    if( read.assembled() && read.assem_contig == iter->id() ){
+                        read.unassemble();
+                    }
+                }
+                contigs.erase(iter++);
+            } else {
+                ++iter;
+            }
+        }
 
     }
 

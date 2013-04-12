@@ -63,14 +63,49 @@ public:
         }
     }
 
+    void trim(char min_quality, list<Read> &reads){
+
+        //trim_left_size
+        unsigned int pos = 0;
+        while(pos < _seq.size() && _qual[pos] < min_quality){
+            ++pos;
+        }
+        _seq = _seq.substr(pos);
+        _qual = _qual.substr(pos);
+        shift_aligned_reads(pos, reads);
+
+        //trim_right_size
+        pos = _seq.size();
+        while(pos > 0 && _qual[pos-1] < min_quality){
+            --pos;
+        }
+        _seq = _seq.substr(0,pos);
+        _qual = _qual.substr(0,pos);
+
+    }
+
     void inc_qual(int pos){
-        _qual[pos] = _qual[pos] + 1;
+        if(_qual[pos] < 126) {
+            _qual[pos] = _qual[pos] + 1;
+        }
     }
 
     void unshift_aligned_reads(unsigned int distance, list<Read> &reads){
         for(auto &read : reads){
             if(read.assembled() && read.assem_contig == _id){
                 read.assem_pos += distance;
+            }
+        }
+    }
+    void shift_aligned_reads(unsigned int distance, list<Read> &reads){
+        for(auto &read : reads){
+            if(read.assembled() && read.assem_contig == _id){
+                int overlap = distance - read.assem_pos;
+                if( overlap > 0){
+                    read.gapped_seq = read.gapped_seq.substr(overlap);
+                } else {
+                    read.assem_pos -= distance;
+                }
             }
         }
     }
