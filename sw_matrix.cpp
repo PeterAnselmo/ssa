@@ -42,7 +42,7 @@ public:
 
     void compute_matrix(){
         const int w_match = 2;
-        const int w_mismatch = -1;
+        const int w_mismatch = -4;
 
         for(int i=0; i<height; ++i){
             h[i][0] = 0;
@@ -64,7 +64,7 @@ public:
     }
 
     void print_matrix(){
-        int padding = 5;
+        int padding = 4;
         cout << setw(padding) << " " << setw(padding) << '-';
         for(int i=0; i<width; ++i){
             cout << setw(padding+1) << seq1[i];

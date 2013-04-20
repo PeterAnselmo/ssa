@@ -17,6 +17,7 @@ const bool DEBUGGING3 = false;
 
 //number of bases in common with edges of consensus & read
 const int MIN_OVERLAP = 20;
+const int MIN_CONTIG_OVERLAP = 25;
 
 //max number of initial perfect match contigs to assemble
 const unsigned int CONTIG_CAP = 1000;
@@ -139,8 +140,21 @@ public:
     void assemble_contigs(){
 
         //loop over all the contigs, we'll try aligning more reads to each one
-        for(auto &c : contigs ){
+        for(auto &c1 : contigs ){
 
+            for(auto &c2 : contigs){
+                if(c1.id() == c2.id()){
+                    continue;
+                }
+                SWMatrix m(c1.seq(), c2.seq());
+                
+                m.print_matrix();
+
+
+            }
+
+
+            /*
             //if any reads were mapped in the last iteration
             bool mapped_read = true;
             while(mapped_read){
@@ -195,6 +209,7 @@ public:
                     }
                 }
             }
+            */
         }
     }
 
