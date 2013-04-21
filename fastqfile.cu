@@ -2,7 +2,7 @@
 #define FASTQFILE_CU
 
 #include <fstream>
-#include <list>
+#include <vector>
 #include <string>
 #include <iostream>
 #include <stdlib.h>
@@ -15,7 +15,7 @@ const int TRIM_SIZE = 2;
 
 class FastqFile {
 private:
-    list<Read> _reads;
+    vector<Read> _reads;
 
 public:
     FastqFile(char* filename){
@@ -54,18 +54,18 @@ public:
     }
 
     void trim_reads(){
-        list<Read>::iterator read;
+        vector<Read>::iterator read;
         for(read = _reads.begin(); read != _reads.end(); ++read){
             read->seq(read->seq().substr(TRIM_SIZE, read->seq().size()-2*TRIM_SIZE));
         }
     }
 
-    const list<Read> reads() const{
+    const vector<Read> reads() const{
         return _reads;
     }
 
     void print_contents(){
-        list<Read>::iterator read;
+        vector<Read>::iterator read;
         for(read = _reads.begin(); read != _reads.end(); ++read){
             printf("%s\n%s\n%s\n%s\n", read->description().c_str(), 
                     read->seq().c_str(), 

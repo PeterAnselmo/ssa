@@ -13,10 +13,6 @@ string fastapath = "out.fasta";
 int main(int argc, char* argv[]){
 
     FastqFile fastq(inpath);
-    /*
-    cout << "File Contents: " << endl;
-    fastq.print_contents();
-    */
 
     Assembly assem(fastq);
     assem.assemble_perfect_contigs();

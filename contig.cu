@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <string>
-#include <list>
+#include <vector>
 #include "read.cu"
 
 using namespace std;
@@ -65,7 +65,7 @@ public:
         }
     }
 
-    void trim(char min_quality, list<Read> &reads){
+    void trim(char min_quality, vector<Read> &reads){
         min_quality += 33;
 
         //trim_left_size
@@ -93,16 +93,16 @@ public:
         }
     }
 
-    void unshift_aligned_reads(unsigned int distance, list<Read> &reads){
-        list<Read>::iterator read;
+    void unshift_aligned_reads(unsigned int distance, vector<Read> &reads){
+        vector<Read>::iterator read;
         for(read = reads.begin(); read != reads.end(); ++read){
             if(read->assembled() && read->assem_contig == _id){
                 read->assem_pos += distance;
             }
         }
     }
-    void shift_aligned_reads(unsigned int distance, list<Read> &reads){
-        list<Read>::iterator read;
+    void shift_aligned_reads(unsigned int distance, vector<Read> &reads){
+        vector<Read>::iterator read;
         for(read = reads.begin(); read != reads.end(); ++read){
             if(read->assembled() && read->assem_contig == _id){
                 int overlap = distance - read->assem_pos;

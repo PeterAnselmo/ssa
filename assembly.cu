@@ -31,7 +31,7 @@ const int CONTIG_MATCH_THRESHOLD = 30;
 
 class Assembly {
 public:
-    list<Read> reads;
+    vector<Read> reads;
     list<Contig> contigs;
 
 public:
@@ -53,7 +53,7 @@ public:
             //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
 
-            list<Read>::iterator read;
+            vector<Read>::iterator read;
             for(read = reads.begin(); read != reads.end(); ++read){
                 if( !read->assembled()  && read->seq().find('N') == string::npos){
                     read->assemble(c.id(), 0);
@@ -82,7 +82,7 @@ public:
                 }
 
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
-                list<Read>::iterator read;
+                vector<Read>::iterator read;
                 for(read = reads.begin(); read != reads.end(); ++read){
 
                     //if this read was already mapped
@@ -150,7 +150,7 @@ public:
 
             //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
-            list<Read>::iterator read;
+            vector<Read>::iterator read;
             for(read = reads.begin(); read != reads.end(); ++read){
                 if( !read->assembled()  && read->seq().find('N') == string::npos){
                     read->assemble(c.id(), 0);
@@ -179,7 +179,7 @@ public:
                 }
 
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
-                list<Read>::iterator read;
+                vector<Read>::iterator read;
                 for(read = reads.begin(); read != reads.end(); ++read){
 
                     //if this read was already mapped
@@ -274,7 +274,7 @@ public:
                 }
 
                 //loop over all unmatched reads
-                list<Read>::iterator iter;
+                vector<Read>::iterator iter;
                 for( iter = reads.begin(); iter != reads.end(); ++iter){
                     Read read = *iter;
 
@@ -285,7 +285,7 @@ public:
 
                     int high_score = 0;
                     int high_pos = 0;
-                    list<Read>::iterator high_iter;
+                    vector<Read>::iterator high_iter;
 
                     unsigned int end_pos = c.size() - MIN_OVERLAP;
                     for(unsigned int i=0; i<end_pos; ++i){
@@ -330,7 +330,7 @@ public:
                 if(DEBUGGING){
                     cout << "Deleting low-quality contig: " << iter->id() << endl;
                 }
-                list<Read>::iterator read;
+                vector<Read>::iterator read;
                 for(read = reads.begin(); read != reads.end(); ++read){
                     if( read->assembled() && read->assem_contig == iter->id() ){
                         read->unassemble();
@@ -346,7 +346,7 @@ public:
 
     void print_report(){
         unsigned int num_assembled = 0;
-        for(list<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
+        for(vector<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
             if( read->assembled() ){
                 ++num_assembled;
             }
@@ -365,7 +365,7 @@ public:
             cout << "Assembled Contig " << c->id() << ":\n" << c->seq() << endl;
             cout << c->qual() << endl;
             if(show_reads){
-                for(list<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
+                for(vector<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
                     if(read->assembled() && read->assem_contig == c->id()){
                         for(int i=0; i<read->assem_pos; ++i){
                             cout << " ";
