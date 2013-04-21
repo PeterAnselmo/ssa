@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <string>
+#include <list>
+#include "read.cu"
 
 using namespace std;
 
@@ -21,11 +23,11 @@ public:
         seq(new_seq);
     }
 
-    const unsigned int id() const{
+    unsigned int id() const{
         return _id;
     }
 
-    const string seq() const{
+    string seq() const{
         return _seq;
     }
 
@@ -37,15 +39,15 @@ public:
         }
     }
 
-    const string qual() const {
+    string qual() const {
         return _qual;
     }
     
-    const string::size_type size(){
+    string::size_type size(){
         return _seq.size();
     }
 
-    const string substr(int start, int length){
+    string substr(int start, int length){
         return _seq.substr(start, length);
     }
     
@@ -64,6 +66,7 @@ public:
     }
 
     void trim(char min_quality, list<Read> &reads){
+        min_quality += 33;
 
         //trim_left_size
         unsigned int pos = 0;
@@ -91,23 +94,30 @@ public:
     }
 
     void unshift_aligned_reads(unsigned int distance, list<Read> &reads){
-        for(auto &read : reads){
-            if(read.assembled() && read.assem_contig == _id){
-                read.assem_pos += distance;
+        list<Read>::iterator read;
+        for(read = reads.begin(); read != reads.end(); ++read){
+            if(read->assembled() && read->assem_contig == _id){
+                read->assem_pos += distance;
             }
         }
     }
     void shift_aligned_reads(unsigned int distance, list<Read> &reads){
-        for(auto &read : reads){
-            if(read.assembled() && read.assem_contig == _id){
-                int overlap = distance - read.assem_pos;
+        list<Read>::iterator read;
+        for(read = reads.begin(); read != reads.end(); ++read){
+            if(read->assembled() && read->assem_contig == _id){
+                int overlap = distance - read->assem_pos;
                 if( overlap > 0){
-                    read.gapped_seq = read.gapped_seq.substr(overlap);
+                    read->gapped_seq = read->gapped_seq.substr(overlap);
                 } else {
-                    read.assem_pos -= distance;
+                    read->assem_pos -= distance;
                 }
             }
         }
+    }
+
+    void merge(Contig other){
+        
+
     }
 };
 

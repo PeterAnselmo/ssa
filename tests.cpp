@@ -1,8 +1,7 @@
 #include <iostream>
 #include <cassert>
-#include "fastqfile.cpp"
+#include "fastqfile.cu"
 #include "assembly.cpp"
-#include "samfile.cpp"
 
 using namespace std;
 

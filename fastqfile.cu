@@ -1,12 +1,12 @@
-#ifndef FASTQFILE_H
-#define FASTQFILE_H
+#ifndef FASTQFILE_CU
+#define FASTQFILE_CU
 
 #include <fstream>
 #include <list>
 #include <string>
 #include <iostream>
 #include <stdlib.h>
-#include "read.cpp"
+#include "read.cu"
 
 using namespace std;
 
@@ -54,8 +54,9 @@ public:
     }
 
     void trim_reads(){
-        for(auto &read : _reads ){
-            read.seq(read.seq().substr(TRIM_SIZE, read.seq().size()-2*TRIM_SIZE));
+        list<Read>::iterator read;
+        for(read = _reads.begin(); read != _reads.end(); ++read){
+            read->seq(read->seq().substr(TRIM_SIZE, read->seq().size()-2*TRIM_SIZE));
         }
     }
 
@@ -64,11 +65,12 @@ public:
     }
 
     void print_contents(){
-        for(const auto read : _reads ){
-            printf("%s\n%s\n%s\n%s\n", read.description().c_str(), 
-                    read.seq().c_str(), 
-                    read.plus().c_str(), 
-                    read.qual().c_str());
+        list<Read>::iterator read;
+        for(read = _reads.begin(); read != _reads.end(); ++read){
+            printf("%s\n%s\n%s\n%s\n", read->description().c_str(), 
+                    read->seq().c_str(), 
+                    read->plus().c_str(), 
+                    read->qual().c_str());
         }
     }
 };

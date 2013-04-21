@@ -4,25 +4,30 @@
 #include <algorithm>
 #include <iomanip>
 #include <list>
-#include "contig.cpp"
-#include "read.cpp"
-#include "fastqfile.cpp"
+#include "contig.cu"
+#include "fastqfile.cu"
+#include "read.cu"
 #include "sw_matrix.cpp"
 
 using namespace std;
 
 const bool DEBUGGING = true;
-const bool DEBUGGING2 = false;
-const bool DEBUGGING3 = false;
 
 //number of bases in common with edges of consensus & read
+//during perfect read assembly stage
 const int MIN_OVERLAP = 20;
-const int MIN_CONTIG_OVERLAP = 25;
 
 //max number of initial perfect match contigs to assemble
 const unsigned int CONTIG_CAP = 1000;
-const unsigned int CONTIG_TRIM_QUALITY = 34;
-const int MATCH_THRESHOLD = 40;
+
+//when trimming contigs, bases with lower than or eqaual to this quality
+//will be removed from edges. Contigs consisting of only bases below
+//this quality will be ommitted from contig assembly
+const unsigned int CONTIG_TRIM_QUALITY = 1;
+
+//mininum Conitig SW score to consider a match,
+//this will need to be adjusted after adjusting match/mismatch scores
+const int CONTIG_MATCH_THRESHOLD = 30;
 
 class Assembly {
 public:
@@ -36,12 +41,10 @@ public:
             cout << "[ERROR] no reads to align." << endl;
             exit(1);
         }
-
     }
 
     //phase 1 - assemble contigs based on perfect overlap in reads - no mismatch allowed
     void assemble_perfect_contigs(){
-
         unsigned int pass = 0;
         //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
         while(pass < CONTIG_CAP){
@@ -49,10 +52,12 @@ public:
 
             //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
-            for(auto &read : reads ){
-                if( !read.assembled()  && read.seq().find('N') == string::npos){
-                    read.assemble(c.id(), 0);
-                    c.seq(read.seq());
+
+            list<Read>::iterator read;
+            for(read = reads.begin(); read != reads.end(); ++read){
+                if( !read->assembled()  && read->seq().find('N') == string::npos){
+                    read->assemble(c.id(), 0);
+                    c.seq(read->seq());
                     all_mapped = false;
                     break;
                 }
@@ -77,55 +82,56 @@ public:
                 }
 
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
-                for(auto &read : reads ){
+                list<Read>::iterator read;
+                for(read = reads.begin(); read != reads.end(); ++read){
 
                     //if this read was already mapped
-                    if( read.assembled() ){
+                    if( read->assembled() ){
                         continue;
                     }
 
-                    cout << "Considering read: " << read.seq() << endl;
+                    cout << "Considering read: " << read->seq() << endl;
 
                     unsigned int end_pos = c.size() - MIN_OVERLAP;
 
                     //compare right side of contig to left side of read
                     for(unsigned int i=0; i<end_pos; ++i){
                         
-                        unsigned int compare_size = min({read.size(), c.size()-i});
+                        unsigned int compare_size = min(read->size(), c.size()-i);
 
                         if(DEBUGGING2){
-                            cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read.substr(0,compare_size) << endl;
+                            cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read->substr(0,compare_size) << endl;
                         }
-                        if( c.substr(i,compare_size) == read.substr(0,compare_size) ){
-                            assemble_perfect_read(c, read, i);
+                        if( c.substr(i,compare_size) == read->substr(0,compare_size) ){
+                            assemble_perfect_read(c, *read, i);
                             mapped_read = true;
                             break;
                         }
-                        if( c.substr(i,compare_size) == read.rev_comp().substr(0,compare_size) ){
-                            read.set_rev_comp();
-                            assemble_perfect_read(c, read, i);
+                        if( c.substr(i,compare_size) == read->rev_comp().substr(0,compare_size) ){
+                            read->set_rev_comp();
+                            assemble_perfect_read(c, *read, i);
                             mapped_read = true;
                             break;
                         }
                     }
                     
                     //compare left side of contig to right side of red
-                    end_pos = read.size() - MIN_OVERLAP;
+                    end_pos = read->size() - MIN_OVERLAP;
                     for(unsigned int i=0; i<end_pos; ++i){
                         
-                        unsigned int compare_size = min({c.size(), read.size()-i});
+                        unsigned int compare_size = min(c.size(), read->size()-i);
 
                         if(DEBUGGING2){
-                            cout << "Considering overlap: " << read.substr(i,compare_size) << "|" << c.substr(0,compare_size) << endl;
+                            cout << "Considering overlap: " << read->substr(i,compare_size) << "|" << c.substr(0,compare_size) << endl;
                         }
-                        if( read.substr(i,compare_size) == c.substr(0,compare_size) ){
-                            assemble_perfect_read_left(c, read, i);
+                        if( read->substr(i,compare_size) == c.substr(0,compare_size) ){
+                            assemble_perfect_read_left(c, *read, i);
                             mapped_read = true;
                             break;
                         }
-                        if( c.substr(i,compare_size) == read.rev_comp().substr(0,compare_size) ){
-                            read.set_rev_comp();
-                            assemble_perfect_read_left(c, read, i);
+                        if( c.substr(i,compare_size) == read->rev_comp().substr(0,compare_size) ){
+                            read->set_rev_comp();
+                            assemble_perfect_read_left(c, *read, i);
                             mapped_read = true;
                             break;
                         }
@@ -136,21 +142,124 @@ public:
         }
     }
 
-    //phase 2 - align reads to contigs, allowing only very high quality matches
+    void assemble_perfect_contigs_cuda(){
+        unsigned int pass = 0;
+        //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
+        while(pass < CONTIG_CAP){
+            Contig c(pass++);
+
+            //find the first unmapped read with no "n" bases to seed the contig
+            bool all_mapped = true;
+            list<Read>::iterator read;
+            for(read = reads.begin(); read != reads.end(); ++read){
+                if( !read->assembled()  && read->seq().find('N') == string::npos){
+                    read->assemble(c.id(), 0);
+                    c.seq(read->seq());
+                    all_mapped = false;
+                    break;
+                }
+            }
+
+            //if all the reads were mapped before hitting the contig cap, exit
+            if( all_mapped ){
+                return;
+            }
+
+            if(DEBUGGING) {
+                cout << "Starting new contig with sequence:\n" << c.seq() << endl;
+            }
+
+            //if any reads were mapped in the last iteration
+            bool mapped_read = true;
+            while(mapped_read){
+                mapped_read = false;
+
+                if(DEBUGGING) {
+                    cout << "Restarting at the beginning of read list\n";
+                }
+
+                //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
+                list<Read>::iterator read;
+                for(read = reads.begin(); read != reads.end(); ++read){
+
+                    //if this read was already mapped
+                    if( read->assembled() ){
+                        continue;
+                    }
+
+                    cout << "Considering read: " << read->seq() << endl;
+
+                    unsigned int end_pos = c.size() - MIN_OVERLAP;
+
+                    //compare right side of contig to left side of read
+                    for(unsigned int i=0; i<end_pos; ++i){
+                        
+                        unsigned int compare_size = min(read->size(), c.size()-i);
+
+                        if(DEBUGGING2){
+                            cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read->substr(0,compare_size) << endl;
+                        }
+                        if( c.substr(i,compare_size) == read->substr(0,compare_size) ){
+                            assemble_perfect_read(c, *read, i);
+                            mapped_read = true;
+                            break;
+                        }
+                        if( c.substr(i,compare_size) == read->rev_comp().substr(0,compare_size) ){
+                            read->set_rev_comp();
+                            assemble_perfect_read(c, *read, i);
+                            mapped_read = true;
+                            break;
+                        }
+                    }
+                    
+                    //compare left side of contig to right side of red
+                    end_pos = read->size() - MIN_OVERLAP;
+                    for(unsigned int i=0; i<end_pos; ++i){
+                        
+                        unsigned int compare_size = min(c.size(), read->size()-i);
+
+                        if(DEBUGGING2){
+                            cout << "Considering overlap: " << read->substr(i,compare_size) << "|" << c.substr(0,compare_size) << endl;
+                        }
+                        if( read->substr(i,compare_size) == c.substr(0,compare_size) ){
+                            assemble_perfect_read_left(c, *read, i);
+                            mapped_read = true;
+                            break;
+                        }
+                        if( c.substr(i,compare_size) == read->rev_comp().substr(0,compare_size) ){
+                            read->set_rev_comp();
+                            assemble_perfect_read_left(c, *read, i);
+                            mapped_read = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            contigs.push_back(c);
+        }
+
+    }
+
+    //phase 2 - assemble contigs to eeach other, allowing mismatches
     void assemble_contigs(){
 
-        //loop over all the contigs, we'll try aligning more reads to each one
-        for(auto &c1 : contigs ){
+        //loop over all the contigs, compare them to each other
+        list<Contig>::iterator c1;
+        for(c1 = contigs.begin(); c1 != contigs.end(); ++c1){
 
-            for(auto &c2 : contigs){
-                if(c1.id() == c2.id()){
+            list<Contig>::iterator c2;
+            for(c2 = contigs.begin(); c2 != contigs.end(); ++c2){
+                if(c1->id() == c2->id()){
                     continue;
                 }
-                SWMatrix m(c1.seq(), c2.seq());
-                
-                m.print_matrix();
-
-
+                SWMatrix m(c1->seq(), c2->seq());
+                if(DEBUGGING3){
+                    m.print_matrix();
+                }
+                if(m.score() > CONTIG_MATCH_THRESHOLD){
+                    m.gap_seqs();
+                    c1->merge(*c2);
+                }
             }
 
 
@@ -158,7 +267,7 @@ public:
             //if any reads were mapped in the last iteration
             bool mapped_read = true;
             while(mapped_read){
-                mapped_read = false;
+            mapped_read = false;
 
                 if(DEBUGGING) {
                     cout << "Restarting at the beginning of read list\n";
@@ -221,9 +330,10 @@ public:
                 if(DEBUGGING){
                     cout << "Deleting low-quality contig: " << iter->id() << endl;
                 }
-                for(auto &read : reads){
-                    if( read.assembled() && read.assem_contig == iter->id() ){
-                        read.unassemble();
+                list<Read>::iterator read;
+                for(read = reads.begin(); read != reads.end(); ++read){
+                    if( read->assembled() && read->assem_contig == iter->id() ){
+                        read->unassemble();
                     }
                 }
                 contigs.erase(iter++);
@@ -236,8 +346,8 @@ public:
 
     void print_report(){
         unsigned int num_assembled = 0;
-        for(auto &read : reads){
-            if( read.assembled() ){
+        for(list<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
+            if( read->assembled() ){
                 ++num_assembled;
             }
         }
@@ -246,10 +356,31 @@ public:
 
     }
 
+    void print_contigs(bool show_reads = true){
+
+        //sort the reads before displaying below contigs
+        //reads.sort([](const Read &r1, const Read &r2){ return r1.assem_pos < r2.assem_pos; });
+
+        for(list<Contig>::iterator c = contigs.begin(); c != contigs.end(); ++c){
+            cout << "Assembled Contig " << c->id() << ":\n" << c->seq() << endl;
+            cout << c->qual() << endl;
+            if(show_reads){
+                for(list<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
+                    if(read->assembled() && read->assem_contig == c->id()){
+                        for(int i=0; i<read->assem_pos; ++i){
+                            cout << " ";
+                        }
+                        cout << read->gapped_seq << endl;
+                    }
+                }
+            }
+        }
+    }
+
 private:
     void assemble_read(Contig &c, Read &read, unsigned int pos){
 
-        unsigned int overlap_size = min({read.size(), c.size()-pos});
+        unsigned int overlap_size = min(read.size(), c.size()-pos);
 
         if(DEBUGGING){
             cout << "Assembling Read: " << read.seq() << " to contig " << c.id() << " at " << pos << endl;
@@ -280,7 +411,7 @@ private:
     }
 
     void assemble_perfect_read(Contig &c, Read &read, unsigned int pos){
-        unsigned int overlap_size = min({read.size(), c.size()-pos});
+        unsigned int overlap_size = min(read.size(), c.size()-pos);
 
         if(DEBUGGING){
             cout << "Assembling Read: " << read.seq() << " to contig " << c.id() << " at " << pos << " "
@@ -310,7 +441,7 @@ private:
     }
 
     void assemble_perfect_read_left(Contig &c, Read &read, unsigned int read_pos){
-        unsigned int overlap_size = min({c.size(), read.size()-read_pos});
+        unsigned int overlap_size = min(c.size(), read.size()-read_pos);
 
         if(DEBUGGING){
             cout << "Assembling Read: " << read.seq() << " to contig " << c.id() << " at read pos " << read_pos << " "

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "read.cpp"
+#include "read.cu"
 
 using namespace std;
 

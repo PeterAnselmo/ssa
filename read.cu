@@ -1,5 +1,5 @@
-#ifndef READ_H
-#define READ_H
+#ifndef READ_CU
+#define READ_CU
 
 #include <algorithm>
 #include <string>
@@ -18,15 +18,15 @@ public:
     string gapped_seq;
     int assem_pos;
 
-    Read(){
+    __host__ __device__ Read(){
         _assembled = false;
     }
 
-    const string::size_type size() const {
+    string::size_type size() const {
         return _seq.size();
     }
 
-    const bool assembled() const{
+    bool assembled() const{
         return _assembled;
     }
     void assemble(unsigned int contig_id, unsigned int pos){

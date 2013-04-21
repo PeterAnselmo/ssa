@@ -1,7 +1,20 @@
-#CC = g++ --std=c++0x -g -O0 -Wall #debugging
-CC = g++ --std=c++0x -O3 -Wall
-all:ssa tests
-tests:tests.cpp read.cpp sw_matrix.cpp contig.cpp fastqfile.cpp fasta.cpp samfile.cpp assembly.cpp samfile.cpp
-	$(CC) -o tests tests.cpp
-ssa: ssa.cpp read.cpp sw_matrix.cpp contig.cpp fastqfile.cpp fasta.cpp samfile.cpp assembly.cpp samfile.cpp
-	$(CC) -I . -o ssa ssa.cpp samtools-0.1.19/libbam.a samtools-0.1.19/bcftools/libbcf.a -lz -lcurses -lpthread 
+CC = g++ --std=c++0x -g -O0 -Wall #debugging
+#CC = nvcc --std=c++0x -O3 -Wall
+NVCC = nvcc
+all:ssa
+#tests:tests.cpp read.cu sw_matrix.cpp contig.cu fastqfile.cu fasta.cu assembly.cu samfile.cpp
+#	$(CC) -o tests tests.cpp
+ssa: ssa.cu read.o fastqfile.o fasta.o contig.o assembly.o sw_matrix.cpp
+	$(NVCC) -o ssa ssa.cu
+read.o:
+	$(NVCC) -c read.cu
+fastqfile.o:
+	$(NVCC) -c fastqfile.cu
+fasta.o:
+	$(NVCC) -c fasta.cu
+contig.o:
+	$(NVCC) -c contig.cu
+assembly.o:
+	$(NVCC) -c assembly.cu
+clean:
+	rm -f *.o
