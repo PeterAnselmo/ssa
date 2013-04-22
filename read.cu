@@ -1,21 +1,16 @@
 #ifndef READ_CU
 #define READ_CU
 
-#include <algorithm>
-#include <string>
-
-using namespace std;
-
 class Read {
 private:
-    string _description;
-    string _seq;
-    string _plus;
-    string _qual;
+    
+    char* _description;
+    char* _seq;
+    char* _qual;
     bool _assembled;
 public:
     unsigned int assem_contig;
-    string gapped_seq;
+    char* gapped_seq;
     int assem_pos;
 
     __host__ __device__ Read(){
@@ -42,7 +37,7 @@ public:
     const string description() const{
         return _description;
     }
-    void description(string new_description){
+    void description(char new_description){
         _description = new_description;
     }
 

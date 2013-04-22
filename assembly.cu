@@ -143,6 +143,18 @@ public:
     }
 
     void assemble_perfect_contigs_cuda(){
+
+        //convert reads to array
+        Read *h_reads;
+        Read *d_reads;
+        h_reads = &reads[0];
+
+        int threads_per_block = 256;
+        int num_blocks = reads.size() / threads_per_block + 1;
+
+        //copy congig to device
+        //copy reads to device
+
         unsigned int pass = 0;
         //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
         while(pass < CONTIG_CAP){
@@ -165,6 +177,7 @@ public:
                 return;
             }
 
+
             if(DEBUGGING) {
                 cout << "Starting new contig with sequence:\n" << c.seq() << endl;
             }
@@ -178,39 +191,12 @@ public:
                     cout << "Restarting at the beginning of read list\n";
                 }
 
+                compute_overlaps<<<blocks_per_device, threads_per_block>>>(d_reads);
+
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
                 vector<Read>::iterator read;
                 for(read = reads.begin(); read != reads.end(); ++read){
 
-                    //if this read was already mapped
-                    if( read->assembled() ){
-                        continue;
-                    }
-
-                    cout << "Considering read: " << read->seq() << endl;
-
-                    unsigned int end_pos = c.size() - MIN_OVERLAP;
-
-                    //compare right side of contig to left side of read
-                    for(unsigned int i=0; i<end_pos; ++i){
-                        
-                        unsigned int compare_size = min(read->size(), c.size()-i);
-
-                        if(DEBUGGING2){
-                            cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read->substr(0,compare_size) << endl;
-                        }
-                        if( c.substr(i,compare_size) == read->substr(0,compare_size) ){
-                            assemble_perfect_read(c, *read, i);
-                            mapped_read = true;
-                            break;
-                        }
-                        if( c.substr(i,compare_size) == read->rev_comp().substr(0,compare_size) ){
-                            read->set_rev_comp();
-                            assemble_perfect_read(c, *read, i);
-                            mapped_read = true;
-                            break;
-                        }
-                    }
                     
                     //compare left side of contig to right side of red
                     end_pos = read->size() - MIN_OVERLAP;
@@ -238,6 +224,45 @@ public:
             contigs.push_back(c);
         }
 
+    }
+
+    __global__ compute_overlaps(Read *reads, int num_reads, contig_id, contig_size ){
+        int tid = blockIdx.x*blockDim.x + threadIdx.x
+
+        //there may be a few extra threads called, make sure in range
+        if( tid < num_reads ){
+            read = reads[tid];
+
+            //if this read was already mapped
+            if( read.assembled() ){
+                return;
+            }
+
+            unsigned int end_pos = c.size() - MIN_OVERLAP;
+
+            //compare right side of contig to left side of read
+            for(unsigned int i=0; i<end_pos; ++i){
+                
+                unsigned int compare_size = min(read->size(), c.size()-i);
+
+                if(DEBUGGING2){
+                    cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read->substr(0,compare_size) << endl;
+                }
+                if( c.substr(i,compare_size) == read->substr(0,compare_size) ){
+                    assemble_perfect_read(c, *read, i);
+                    mapped_read = true;
+                    break;
+                }
+                if( c.substr(i,compare_size) == read->rev_comp().substr(0,compare_size) ){
+                    read->set_rev_comp();
+                    assemble_perfect_read(c, *read, i);
+                    mapped_read = true;
+                    break;
+                }
+            }
+
+
+        }
     }
 
     //phase 2 - assemble contigs to eeach other, allowing mismatches
