@@ -96,22 +96,22 @@ public:
     void unshift_aligned_reads(unsigned int distance, vector<Read> &reads){
         vector<Read>::iterator read;
         for(read = reads.begin(); read != reads.end(); ++read){
-            if(read->assembled() && read->assem_contig == _id){
-                read->assem_pos += distance;
+            if(read->assembled() && read->contig() == _id){
+                read->set_position(read->position() + distance);
             }
         }
     }
     void shift_aligned_reads(unsigned int distance, vector<Read> &reads){
         vector<Read>::iterator read;
         for(read = reads.begin(); read != reads.end(); ++read){
-            if(read->assembled() && read->assem_contig == _id){
-                int overlap = distance - read->assem_pos;
+            if(read->assembled() && read->contig() == _id){
+                int overlap = distance - read->position();
                 if( overlap > 0){
                     char *gapped_substr = read->gapped_substr(overlap);
                     strcpy(read->gapped_seq, gapped_substr);
                     free(gapped_substr);
                 } else {
-                    read->assem_pos -= distance;
+                    read->set_position(read->position() - distance);
                 }
             }
         }

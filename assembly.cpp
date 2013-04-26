@@ -323,7 +323,7 @@ public:
                 }
                 vector<Read>::iterator read;
                 for(read = reads.begin(); read != reads.end(); ++read){
-                    if( read->assembled() && read->assem_contig == iter->id() ){
+                    if( read->assembled() && read->contig() == iter->id() ){
                         read->unassemble();
                     }
                 }
@@ -350,15 +350,15 @@ public:
     void print_contigs(bool show_reads = true){
 
         //sort the reads before displaying below contigs
-        //reads.sort([](const Read &r1, const Read &r2){ return r1.assem_pos < r2.assem_pos; });
+        //reads.sort([](const Read &r1, const Read &r2){ return r1.position() < r2.position(); });
 
         for(list<Contig>::iterator c = contigs.begin(); c != contigs.end(); ++c){
             cout << "Assembled Contig " << c->id() << ":\n" << c->seq() << endl;
             cout << c->qual() << endl;
             if(show_reads){
                 for(vector<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
-                    if(read->assembled() && read->assem_contig == c->id()){
-                        for(int i=0; i<read->assem_pos; ++i){
+                    if(read->assembled() && read->contig() == c->id()){
+                        for(unsigned int i=0; i<read->position(); ++i){
                             cout << " ";
                         }
                         cout << read->gapped_seq << endl;
