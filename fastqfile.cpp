@@ -6,7 +6,7 @@
 #include <string>
 #include <iostream>
 #include <stdlib.h>
-#include "read.cu"
+#include "read.cpp"
 
 using namespace std;
 
@@ -26,25 +26,23 @@ public:
     void import_from_file(char* filename){
         ifstream fh;
         fh.open(filename);
+        FILE *fp = fopen(filename, "r");
+        char line[256];
 
-        if( fh.fail() ){
-            cout << "Error opening read file.\n";
-            exit(1);
-        }
-
-        string line;
         int count = 0;
         Read read;
-        while(getline(fh, line)){
+        while(fgets(line,sizeof(line), fp)){
+            //chomp newline
+            line[strlen(line)-1] = '\0';
+
             if( count % 4 == 0 ){
-                read.description(line);
+                read.set_description(line);
             } else if (count % 4 == 1 ){
-                read.seq(line);
+                read.set_seq(line);
             } else if (count % 4 == 2 ){
-                read.plus(line);
+                //read.plus(line.c_str());
             } else if (count % 4 == 3 ){
-                read.qual(line);
-                read.assem_pos = -1;
+                read.set_qual(line);
                 _reads.push_back(read);
             }
             ++count;
@@ -56,7 +54,7 @@ public:
     void trim_reads(){
         vector<Read>::iterator read;
         for(read = _reads.begin(); read != _reads.end(); ++read){
-            read->seq(read->seq().substr(TRIM_SIZE, read->seq().size()-2*TRIM_SIZE));
+            read->trim();
         }
     }
 
@@ -67,10 +65,11 @@ public:
     void print_contents(){
         vector<Read>::iterator read;
         for(read = _reads.begin(); read != _reads.end(); ++read){
-            printf("%s\n%s\n%s\n%s\n", read->description().c_str(), 
-                    read->seq().c_str(), 
-                    read->plus().c_str(), 
-                    read->qual().c_str());
+            printf("%s\n%s\n%c\n%s\n", 
+                    read->description(), 
+                    read->seq(), 
+                    '+',
+                    read->qual());
         }
     }
 };

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "read.cu"
+#include "read.cpp"
 
 using namespace std;
 
@@ -34,7 +34,7 @@ public:
         ofstream fh;
         fh.open(_filename.c_str());
         if( fh.fail() ){
-            cout << "Error opening Fasta file for writing.\n";
+            printf("Error opening Fasta file for writing.\n");
             exit(1);
         }
         fh << ">" << _description << endl;

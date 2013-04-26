@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include "read.cu"
+#include "read.cpp"
 
 using namespace std;
 
@@ -43,7 +43,7 @@ public:
         return _qual;
     }
     
-    string::size_type size(){
+    unsigned int size(){
         return _seq.size();
     }
 
@@ -107,7 +107,9 @@ public:
             if(read->assembled() && read->assem_contig == _id){
                 int overlap = distance - read->assem_pos;
                 if( overlap > 0){
-                    read->gapped_seq = read->gapped_seq.substr(overlap);
+                    char *gapped_substr = read->gapped_substr(overlap);
+                    strcpy(read->gapped_seq, gapped_substr);
+                    free(gapped_substr);
                 } else {
                     read->assem_pos -= distance;
                 }
