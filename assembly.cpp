@@ -57,7 +57,7 @@ public:
             for(read = reads.begin(); read != reads.end(); ++read){
                 if( !read->assembled() && read->find('N') == read->size()){
                     read->assemble(c.id(), 0);
-                    c.seq(read->seq());
+                    c.set_seq(read->seq());
                     all_mapped = false;
                     break;
                 }
@@ -103,18 +103,20 @@ public:
                             cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read->substr(0,compare_size) << endl;
                         }
                         char *read_substr = read->substr(0,compare_size);
-                        if( !read->assembled() && strcmp(c.substr(i,compare_size).c_str(), read_substr) == 0){
+                        char *contig_substr = c.substr(i,compare_size);
+                        if( !read->assembled() && strcmp(contig_substr, read_substr) == 0){
                             assemble_perfect_read(c, *read, i);
                             mapped_read = true;
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
-                        if( !read->assembled() && strcmp(c.substr(i,compare_size).c_str(), read_rev_substr) == 0 ){
+                        if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             read->set_rev_comp();
                             assemble_perfect_read(c, *read, i);
                             mapped_read = true;
                         }
                         free(read_rev_substr);
+                        free(contig_substr);
                     }
                     
                     //compare left side of contig to right side of red
@@ -123,22 +125,24 @@ public:
                         
                         unsigned int compare_size = min(c.size(), read->size()-i);
 
-                        if(DEBUGGING2){
-                            cout << "Considering overlap: " << read->substr(i,compare_size) << "|" << c.substr(0,compare_size) << endl;
-                        }
                         char *read_substr = read->substr(i,compare_size);
-                        if( !read->assembled() && strcmp(read_substr, c.substr(0,compare_size).c_str()) == 0 ){
+                        char *contig_substr = c.substr(0,compare_size);
+                        if(DEBUGGING2){
+                            printf("Considering overlap: %s | %s\n", read_substr, contig_substr);
+                        }
+                        if( !read->assembled() && strcmp(read_substr, contig_substr) == 0 ){
                             assemble_perfect_read_left(c, *read, i);
                             mapped_read = true;
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
-                        if( !read->assembled() && strcmp(c.substr(i,compare_size).c_str(), read_rev_substr) == 0 ){
+                        if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             read->set_rev_comp();
                             assemble_perfect_read_left(c, *read, i);
                             mapped_read = true;
                         }
                         free(read_rev_substr);
+                        free(contig_substr);
                     }
                 }
             }
@@ -184,7 +188,7 @@ public:
 
 
             if(DEBUGGING) {
-                cout << "Starting new contig with sequence:\n" << c.seq() << endl;
+                cout << "Starting new contig with sequence:\n" << c.set_seq() << endl;
             }
 
             //if any reads were mapped in the last iteration
@@ -249,7 +253,7 @@ public:
                 }
                 if(m.score() > CONTIG_MATCH_THRESHOLD){
                     m.gap_seqs();
-                    c1->merge(*c2);
+                    //c1->merge(*c2);
                 }
             }
 
@@ -314,22 +318,22 @@ public:
     }
 
     void trim_contigs(){
-        list<Contig>::iterator iter = contigs.begin();
-        while(iter != contigs.end()){
-            iter->trim(CONTIG_TRIM_QUALITY, reads);
-            if(iter->size() == 0){
+        list<Contig>::iterator contig = contigs.begin();
+        while(contig != contigs.end()){
+            contig->trim(CONTIG_TRIM_QUALITY, reads);
+            if(contig->size() == 0){
                 if(DEBUGGING){
-                    cout << "Deleting low-quality contig: " << iter->id() << endl;
+                    cout << "Deleting low-quality contig: " << contig->id() << endl;
                 }
                 vector<Read>::iterator read;
                 for(read = reads.begin(); read != reads.end(); ++read){
-                    if( read->assembled() && read->contig() == iter->id() ){
+                    if( read->assembled() && read->contig() == contig->id() ){
                         read->unassemble();
                     }
                 }
-                contigs.erase(iter++);
+                contigs.erase(contig++);
             } else {
-                ++iter;
+                ++contig;
             }
         }
 
@@ -393,7 +397,7 @@ private:
                     c.inc_qual(pos+i);
                 }
             }
-            string new_seq = read.gapped_substr(overlap_size);
+            char* new_seq = read.gapped_substr(overlap_size);
             if(DEBUGGING){
                 cout << "adding " << new_seq << " to reference.\n";
             }
@@ -436,8 +440,7 @@ private:
         unsigned int overlap_size = min(c.size(), read.size()-read_pos);
 
         if(DEBUGGING){
-            cout << "Assembling Read: " << read.seq() << " to contig " << c.id() << " at read pos " << read_pos << " "
-                 << "overlap size: " << overlap_size << endl;
+            printf("Assembling Read: %s to contig %d at pos %d with overlap %d\n", read.seq(), c.id(), read_pos, overlap_size);
         }
 
         //increment the quality for all of the overlapping bases at the left of the contig
@@ -449,13 +452,13 @@ private:
             char *new_seq = read.substr(0,read_pos);
 
             if(DEBUGGING){
-                cout << "adding " << new_seq << " to beginning reference, overlap size: " << overlap_size << ".\n";
+                printf("adding %s to beginning reference, overlap size: %d\n", new_seq, overlap_size);
             }
             c.prepend(new_seq);
             c.unshift_aligned_reads(strlen(new_seq), reads);
 
             if(DEBUGGING){
-                cout << "New Reference:\n" << c.seq() << endl;
+                printf("New Reference:\n%s\n", c.seq());
             }
             free(new_seq);
         }
