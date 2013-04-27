@@ -4,7 +4,6 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
-#include <string>
 #include "settings.cpp"
 
 using namespace std;
@@ -16,20 +15,32 @@ private:
     //int **s;
     int height;
     int width;
-    string seq1; //along top of matrix
-    string seq2; //along left side of matrix
+    char* _seq1; //along top of matrix
+    char* _seq2; //along left side of matrix
     int max_h, max_w; //coordinate of the highest score in matrix
-    string gapped_seq1;
-    string gapped_seq2;
+    char* gapped_seq1;
+    char* gapped_seq2;
 
 public:
-    SWMatrix(string new_seq1, string new_seq2){
+    SWMatrix(char* new_seq1, char* new_seq2){
 
-        seq1 = new_seq1;
-        seq2 = new_seq2;
-        width = seq1.size() + 1;
-        height = seq2.size() + 1;
+        //coincidentally, the matrix will have the same dimmensions as the allocated 
+        //strings, since there is an extra zero row and a null character respectively.
+        width = strlen(new_seq1) + 1;
+        height = strlen(new_seq2) + 1;
+        _seq1 = (char*)malloc(width);
+        _seq2 = (char*)malloc(height);
+        strncpy(_seq1, new_seq1, width);
+        strncpy(_seq2, new_seq2, height);
+        
+        gapped_seq1 = NULL;
+        gapped_seq2 = NULL;
+        
         max_h = max_w = 0;
+
+        if(DEBUGGING2){
+            printf("Constructing matrix of wxh: %dx%d\n", width, height);
+        }
 
         h = new int*[height];
         for(int i=0; i<height; ++i){
@@ -52,10 +63,10 @@ public:
         compute_matrix();
         //compute_sum_matrix();
     }
-    string get_gapped_seq1(){
+    char* get_gapped_seq1(){
         return gapped_seq1;
     }
-    string get_gapped_seq2(){
+    char* get_gapped_seq2(){
         return gapped_seq2;
     }
 
@@ -66,7 +77,7 @@ public:
         int max_val = 0;
         for(int i=1; i<height; i++){
             for(int j=1; j<width; ++j){
-                int w = (seq1[j-1] == seq2[i-1]) ? w_match : w_mismatch;
+                int w = (_seq1[j-1] == _seq2[i-1]) ? w_match : w_mismatch;
                 h[i][j] = max(
                     max(0,
                         h[i-1][j-1] + w), //match, mismatch
@@ -88,7 +99,7 @@ public:
         int padding = 3;
         cout << setw(padding) << " " << setw(padding) << '-';
         for(int i=0; i<width; ++i){
-            cout << setw(padding+1) << seq1[i];
+            cout << setw(padding+1) << _seq1[i];
         }
         cout << endl;
         cout << setw(padding-1) << '-';
@@ -97,7 +108,7 @@ public:
         }
         cout << endl;
         for(int i=1; i<height; ++i){
-            cout << setw(padding) << seq2[i-1];
+            cout << setw(padding) << _seq2[i-1];
             for(int j=0; j<width; ++j){
                 cout << setw(padding) << h[i][j] << " ";
             }
@@ -136,6 +147,7 @@ public:
     }
     */
 
+    /*
     void gap_seqs(){
         //these will hold the sequences with "-" in gaps
         //initially they will be reversed - more efficient to append,
@@ -145,24 +157,22 @@ public:
         int x = max_w;
         int y = max_h;
         while(x > 0 && y > 0){
-            /*
-            if(seq1[x] == seq2[y]){
-                gapped_seq1 += seq1[x];
-                gapped_seq2 += seq1[x];
-                */
+            if(_seq1[x] == _seq2[y]){
+                gapped_seq1 += _seq1[x];
+                gapped_seq2 += _seq1[x];
 
             //if we're moving diagonal - match/mismatch
             if( h[y-1][x-1] >= h[y-1][x] && h[y-1][x-1] >= h[y][x-1]){
                 //if(DEBUGGING3){ cout << 'a '; }
-                gapped_seq1 += seq1[x];
-                gapped_seq2 += seq2[y];
+                gapped_seq1 += _seq1[x];
+                gapped_seq2 += _seq2[y];
                 --x;
                 --y;
 
             //moving left - deletion in second sequence
             } else if ( h[y][x-1] > h[y-1][x] ){
                 //if(DEBUGGING3){ cout << 'b ';}
-                gapped_seq1 += seq1[x];
+                gapped_seq1 += _seq1[x];
                 gapped_seq2 += '-';
                 --x;
 
@@ -170,15 +180,19 @@ public:
             } else {
                 //if(DEBUGGING3){ cout << 'c '; }
                 gapped_seq1 += '-';
-                gapped_seq2 += seq2[y];
+                gapped_seq2 += _seq2[y];
                 --y;
             }
         }
         reverse(gapped_seq1.begin(), gapped_seq1.end());
         reverse(gapped_seq2.begin(), gapped_seq2.end());
     }
+    */
 
     ~SWMatrix(){
+        free(_seq1);
+        free(_seq2);
+
         for(int i=0; i<height; ++i){
             delete[] h[i];
         }

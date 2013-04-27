@@ -11,8 +11,6 @@
 
 using namespace std;
 
-const bool DEBUGGING = true;
-
 //number of bases in common with edges of consensus & read
 //during perfect read assembly stage
 const int MIN_OVERLAP = 20;
@@ -90,26 +88,34 @@ public:
                         continue;
                     }
 
-                    cout << "Considering read: " << read->seq() << endl;
+                    if(DEBUGGING2){
+                        printf("Considering read: %s\n", read->seq());
+                    }
 
+                    //unsigned int start_pos = c.size() - read->size();
                     unsigned int end_pos = c.size() - MIN_OVERLAP;
 
                     //compare right side of contig to left side of read
+                    //start position depends on whether trying to align reads
+                    //for(unsigned int i=start_pos; i<end_pos; ++i){
                     for(unsigned int i=0; i<end_pos; ++i){
                         
                         unsigned int compare_size = min(read->size(), c.size()-i);
 
-                        if(DEBUGGING2){
-                            cout << "Considering overlap: " << c.substr(i,compare_size) << "|" << read->substr(0,compare_size) << endl;
-                        }
                         char *read_substr = read->substr(0,compare_size);
                         char *contig_substr = c.substr(i,compare_size);
+                        if(DEBUGGING2){
+                            printf("Considering overlap: %s | %s\n", contig_substr, read_substr);
+                        }
                         if( !read->assembled() && strcmp(contig_substr, read_substr) == 0){
                             assemble_perfect_read(c, *read, i);
                             mapped_read = true;
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
+                        if(DEBUGGING2){
+                            printf("Considering overlap: %s | %s\n", contig_substr, read_rev_substr);
+                        }
                         if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             read->set_rev_comp();
                             assemble_perfect_read(c, *read, i);
@@ -136,6 +142,9 @@ public:
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
+                        if(DEBUGGING2){
+                            printf("Considering overlap: %s | %s\n", read_rev_substr, contig_substr);
+                        }
                         if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             read->set_rev_comp();
                             assemble_perfect_read_left(c, *read, i);
@@ -252,7 +261,7 @@ public:
                     m.print_matrix();
                 }
                 if(m.score() > CONTIG_MATCH_THRESHOLD){
-                    m.gap_seqs();
+                    //m.gap_seqs();
                     //c1->merge(*c2);
                 }
             }
@@ -323,20 +332,13 @@ public:
             contig->trim(CONTIG_TRIM_QUALITY, reads);
             if(contig->size() == 0){
                 if(DEBUGGING){
-                    cout << "Deleting low-quality contig: " << contig->id() << endl;
-                }
-                vector<Read>::iterator read;
-                for(read = reads.begin(); read != reads.end(); ++read){
-                    if( read->assembled() && read->contig() == contig->id() ){
-                        read->unassemble();
-                    }
+                    printf("Deleting low-quality contig: %d\n", contig->id());
                 }
                 contigs.erase(contig++);
             } else {
                 ++contig;
             }
         }
-
     }
 
     void print_report(){
@@ -346,26 +348,28 @@ public:
                 ++num_assembled;
             }
         }
-        cout << "Assembled " << num_assembled << "/" << reads.size() << " reads ("
-             << static_cast<double>(num_assembled) * 100 /reads.size() << "%)" << endl;
+        printf("Assembled %u/%u reads(%f%%)", num_assembled, 
+                                              static_cast<unsigned int>(reads.size()), 
+                                              static_cast<double>(num_assembled) * 100 /reads.size());
 
     }
 
     void print_contigs(bool show_reads = true){
 
-        //sort the reads before displaying below contigs
-        //reads.sort([](const Read &r1, const Read &r2){ return r1.position() < r2.position(); });
+        if(show_reads){
+            //sort the reads before displaying below contigs
+            sort(reads.begin(), reads.end());
+        }
 
         for(list<Contig>::iterator c = contigs.begin(); c != contigs.end(); ++c){
-            cout << "Assembled Contig " << c->id() << ":\n" << c->seq() << endl;
-            cout << c->qual() << endl;
+            printf("Assembled Contig %d:\n%s\n%s\n", c->id(), c->seq(), c->qual());
             if(show_reads){
                 for(vector<Read>::iterator read = reads.begin(); read != reads.end(); ++read){
                     if(read->assembled() && read->contig() == c->id()){
                         for(unsigned int i=0; i<read->position(); ++i){
-                            cout << " ";
+                            printf(" ");
                         }
-                        cout << read->gapped_seq << endl;
+                        printf("%s\n",read->gapped_seq());
                     }
                 }
             }
@@ -373,6 +377,7 @@ public:
     }
 
 private:
+    /*
     void assemble_read(Contig &c, Read &read, unsigned int pos){
 
         unsigned int overlap_size = min(read.size(), c.size()-pos);
@@ -404,13 +409,13 @@ private:
             c.append(new_seq);
         }
     }
+    */
 
     void assemble_perfect_read(Contig &c, Read &read, unsigned int pos){
         unsigned int overlap_size = min(read.size(), c.size()-pos);
 
         if(DEBUGGING){
-            cout << "Assembling Read: " << read.seq() << " to contig " << c.id() << " at " << pos << " "
-                 << "overlap size: " << overlap_size << endl;
+            printf("Assembling read: %s to contig %d at %d, overlap size: %u\n", read.seq(), c.id(), pos, overlap_size);
         }
 
         //assemble the read here
@@ -425,13 +430,13 @@ private:
             char *new_seq = read.substr(overlap_size);
 
             if(DEBUGGING){
-                cout << "adding " << new_seq << " to reference, overlap size: " << overlap_size << ".\n";
+                printf("Adding %s to end of reference\n", new_seq);
             }
             c.append(new_seq);
             free(new_seq);
 
             if(DEBUGGING){
-                cout << "New Reference:\n" << c.seq() << endl;
+                printf("New Reference:\n%s\n", c.seq());
             }
         }
     }
@@ -452,7 +457,7 @@ private:
             char *new_seq = read.substr(0,read_pos);
 
             if(DEBUGGING){
-                printf("adding %s to beginning reference, overlap size: %d\n", new_seq, overlap_size);
+                printf("Adding %s to beginning of reference\n", new_seq);
             }
             c.prepend(new_seq);
             c.unshift_aligned_reads(strlen(new_seq), reads);

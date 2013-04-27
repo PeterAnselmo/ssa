@@ -11,26 +11,37 @@ private:
     char* _description;
     char* _seq;
     char* _qual;
+    char* _gapped_seq;
+
     bool _assembled;
     unsigned int _contig;
     unsigned int _position;
 public:
-    char* gapped_seq;
 
     Read(){
-        _assembled = false;
         _description = NULL;
         _seq = NULL;
         _qual = NULL;
+        _gapped_seq = NULL;
+
+        _assembled = false;
+        _contig = 0;
+        _position = 0;
     }
     Read(const Read &rhs){
         _description = NULL;
         _seq = NULL;
         _qual = NULL;
+        _gapped_seq = NULL;
+
         set_description(rhs._description);
         set_seq(rhs._seq);
         set_qual(rhs._qual);
+        set_gapped_seq(rhs._gapped_seq);
+
         _assembled = rhs._assembled;
+        _contig = rhs._contig;
+        _position = rhs._position;
     }
 
     bool assembled() const{
@@ -41,7 +52,7 @@ public:
         _assembled = true;
         _contig = contig_id;
         _position = pos;
-        gapped_seq = _seq;
+        set_gapped_seq(_seq);
     }
 
     unsigned int contig() const {
@@ -61,13 +72,17 @@ public:
         return size();
     }
 
+    char* gapped_seq(){
+        return _gapped_seq;
+    }
+
     unsigned int gapped_size() const {
-        return strlen(gapped_seq);
+        return strlen(_gapped_seq);
     }
 
     char* gapped_substr(int pos, int length) const {
         char *sub = (char *)malloc(sizeof(char)*(length+1));
-        memcpy(sub, &gapped_seq[pos], length);
+        memcpy(sub, &_gapped_seq[pos], length);
         sub[length] = '\0';
         return sub;
     }
@@ -132,9 +147,9 @@ public:
 
     void set_description(const char *new_description){
         if(_description == NULL){
-            _description = (char *)malloc(strlen(new_description)+1);
+            _description = (char*)malloc(strlen(new_description)+1);
         } else {
-            _description = (char *)realloc(_description, strlen(new_description)+1);
+            _description = (char*)realloc(_description, strlen(new_description)+1);
         }
         if(_description == NULL){
             fprintf(stderr, "Memory Allocation Error\n");
@@ -143,22 +158,36 @@ public:
         strncpy(_description, new_description, strlen(new_description)+1);
     }
 
+    void set_gapped_seq(const char* new_gapped_seq){
+        if(_gapped_seq == NULL){
+            _gapped_seq = (char*)malloc(strlen(new_gapped_seq)+1);
+        } else {
+            _gapped_seq = (char*)realloc(_gapped_seq, strlen(new_gapped_seq)+1);
+        }
+
+        if(_gapped_seq == NULL){
+            fprintf(stderr, "Memory Allocation Error\n");
+            exit(1);
+        }
+        strncpy(_gapped_seq, new_gapped_seq, strlen(new_gapped_seq)+1);
+    }
+
     void set_position(unsigned int new_pos){
         _position = new_pos;
     }
 
     void set_qual(const char* new_qual){
         if(_qual == NULL){
-            _qual = (char *)malloc(strlen(new_qual)+1);
+            _qual = (char*)malloc(strlen(new_qual)+1);
         } else {
-            _qual = (char *)realloc(_qual, strlen(new_qual)+1);
+            _qual = (char*)realloc(_qual, strlen(new_qual)+1);
         }
 
         if(_qual == NULL){
             fprintf(stderr, "Memory Allocation Error\n");
             exit(1);
         }
-        strncpy(_qual, new_qual,strlen(new_qual)+1);
+        strncpy(_qual, new_qual, strlen(new_qual)+1);
     }
 
     void set_seq(const char* new_seq){
@@ -212,28 +241,56 @@ public:
         _assembled = false;
     }
 
+    const bool operator < (const Read &rhs) const {
+
+        if(_assembled){
+            if(rhs._assembled){
+                if(_contig == rhs._contig){
+                    return _position < rhs._position;
+                }
+                return _contig < rhs._contig;
+            }
+            return true;
+        }
+        return false;
+    }
+
     Read& operator = (const Read &rhs){
-        _description = NULL;
+        free_strings();
+
         set_description(rhs._description);
-
-        _seq = NULL;
         set_seq(rhs._seq);
-
-        _qual = NULL;
         set_qual(rhs._qual);
+        set_gapped_seq(rhs._gapped_seq);
+
+        _assembled = rhs._assembled;
+        _contig = rhs._contig;
+        _position = rhs._position;
 
         return *this;
     }
 
     ~Read(){
+        free_strings();
+    }
+
+private:
+    void free_strings(){
         if(_description != NULL){
             free(_description);
+            _description = NULL;
         }
         if(_seq != NULL){
             free(_seq);
+            _seq = NULL;
         }
         if(_qual != NULL){
             free(_qual);
+            _qual = NULL;
+        }
+        if(_gapped_seq != NULL){
+            free(_gapped_seq);
+            _gapped_seq = NULL;
         }
     }
 };

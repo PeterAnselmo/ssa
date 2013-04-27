@@ -142,8 +142,9 @@ public:
                 int overlap = distance - read->position();
                 if( overlap > 0){
                     char *gapped_substr = read->gapped_substr(overlap);
-                    strcpy(read->gapped_seq, gapped_substr);
+                    read->set_gapped_seq(gapped_substr);
                     free(gapped_substr);
+                    read->set_position(0);
                 } else {
                     read->set_position(read->position() - distance);
                 }
@@ -178,7 +179,19 @@ public:
         }
 
         int new_length = end_pos - start_pos;
-        if(new_length <= 0){ new_length = 0; }
+        if(new_length <= 0){ 
+            new_length = 0; 
+            vector<Read>::iterator read;
+            for(read = reads.begin(); read != reads.end(); ++read){
+                if( read->assembled() && read->contig() == _id ){
+                    read->unassemble();
+                }
+            }
+        } else {
+            if(start_pos > 0){
+                shift_aligned_reads(start_pos, reads);
+            }
+        }
         set_substr(start_pos, new_length);
     }
 

@@ -14,13 +14,16 @@ int main(int argc, char* argv[]){
 
     FastqFile fastq(inpath);
     printf("Fastq file Read.\n");
-    //fastq.print_contents();
+    if(DEBUGGING3){
+        fastq.print_contents();
+    }
 
     Assembly assem(fastq);
     assem.assemble_perfect_contigs();
-    //assem.trim_contigs();
+    assem.trim_contigs();
 //    assem.assemble_contigs();
     assem.print_contigs();
+    assem.print_report();
     printf("Contigs assembled.\n");
 
     Fasta fasta(fastapath);

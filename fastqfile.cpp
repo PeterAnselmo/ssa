@@ -39,6 +39,7 @@ public:
                 read.set_description(line);
             } else if (count % 4 == 1 ){
                 read.set_seq(line);
+                read.set_gapped_seq(line);
             } else if (count % 4 == 2 ){
                 //read.plus(line.c_str());
             } else if (count % 4 == 3 ){
