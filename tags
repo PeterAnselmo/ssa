@@ -9,15 +9,15 @@ Assembly	assembly.cpp	/^    Assembly(FastqFile &input_file){$/;"	f	class:Assembl
 Assembly	assembly.cpp	/^class Assembly {$/;"	c	file:
 CC	makefile	/^CC = g++ -g -O0 -Wall #debugging$/;"	m
 CONGTIG_H	contig.cpp	2;"	d	file:
-CONTIG_CAP	assembly.cpp	/^const unsigned int CONTIG_CAP = 1000;$/;"	v
-CONTIG_MATCH_THRESHOLD	assembly.cpp	/^const int CONTIG_MATCH_THRESHOLD = 30;$/;"	v
-CONTIG_TRIM_QUALITY	assembly.cpp	/^const unsigned int CONTIG_TRIM_QUALITY = 1;$/;"	v
+CONTIG_CAP	assembly.cpp	/^const unsigned int CONTIG_CAP = 500;$/;"	v
+CONTIG_MATCH_THRESHOLD	settings.cpp	/^const int CONTIG_MATCH_THRESHOLD = 16;$/;"	v
+CONTIG_TRIM_QUALITY	settings.cpp	/^const unsigned int CONTIG_TRIM_QUALITY = 2;$/;"	v
 Contig	contig.cpp	/^    Contig(){$/;"	f	class:Contig
 Contig	contig.cpp	/^    Contig(const Contig &rhs){$/;"	f	class:Contig
 Contig	contig.cpp	/^    Contig(int id){$/;"	f	class:Contig
 Contig	contig.cpp	/^    Contig(int id, char* new_seq){$/;"	f	class:Contig
 Contig	contig.cpp	/^class Contig {$/;"	c	file:
-DEBUGGING	assembly.cpp	/^const bool DEBUGGING = true;$/;"	v
+DEBUGGING	settings.cpp	/^const bool DEBUGGING = true; $/;"	v
 DEBUGGING2	settings.cpp	/^const bool DEBUGGING2 = false;$/;"	v
 DEBUGGING3	settings.cpp	/^const bool DEBUGGING3 = false;$/;"	v
 FASTA_H	fasta.cpp	2;"	d	file:
@@ -26,26 +26,37 @@ Fasta	fasta.cpp	/^    Fasta(string new_filename){$/;"	f	class:Fasta
 Fasta	fasta.cpp	/^class Fasta{$/;"	c	file:
 FastqFile	fastqfile.cpp	/^    FastqFile(char* filename){$/;"	f	class:FastqFile
 FastqFile	fastqfile.cpp	/^class FastqFile {$/;"	c	file:
-MIN_OVERLAP	assembly.cpp	/^const int MIN_OVERLAP = 20;$/;"	v
+MIN_OVERLAP	settings.cpp	/^const int MIN_OVERLAP = 20;$/;"	v
 NVCC	makefile	/^NVCC = nvcc -O0 --compiler-options="-g -Wall"$/;"	m
+QUAL_OFFSET	settings.cpp	/^const int QUAL_OFFSET = 32;$/;"	v
 READ_CU	read.cpp	2;"	d	file:
 Read	read.cpp	/^    Read(){$/;"	f	class:Read
 Read	read.cpp	/^    Read(const Read &rhs){$/;"	f	class:Read
 Read	read.cpp	/^class Read {$/;"	c	file:
 SAMFILE_H	samfile.cpp	2;"	d	file:
-SWMatrix	sw_matrix.cpp	/^    SWMatrix(string new_seq1, string new_seq2){$/;"	f	class:SWMatrix
+SETTINGS_CPP	settings.cpp	2;"	d	file:
+SWMatrix	sw_matrix.cpp	/^    SWMatrix(Contig &cont1, Contig &cont2){$/;"	f	class:SWMatrix
 SWMatrix	sw_matrix.cpp	/^class SWMatrix {$/;"	c	file:
 SW_MATRIX_H	sw_matrix.cpp	2;"	d	file:
+SW_W_MATCH	settings.cpp	/^const int SW_W_MATCH = 2;$/;"	v
+SW_W_MISMATCH	settings.cpp	/^const int SW_W_MISMATCH = -4;$/;"	v
 SamFile	samfile.cpp	/^    SamFile(string new_filepath, Assembly assem){$/;"	f	class:SamFile
 SamFile	samfile.cpp	/^class SamFile {$/;"	c	file:
 TRIM_SIZE	fastqfile.cpp	/^const int TRIM_SIZE = 2;$/;"	v
 _assembled	read.cpp	/^    bool _assembled;$/;"	m	class:Read	file:
+_complete_qual	sw_matrix.cpp	/^    char* _complete_qual;$/;"	m	class:SWMatrix	file:
+_complete_seq	sw_matrix.cpp	/^    char* _complete_seq;$/;"	m	class:SWMatrix	file:
 _contig	read.cpp	/^    unsigned int _contig;$/;"	m	class:Read	file:
 _description	fasta.cpp	/^    string _description;$/;"	m	class:Fasta	file:
 _description	read.cpp	/^    char* _description;$/;"	m	class:Read	file:
 _filename	fasta.cpp	/^    string _filename;$/;"	m	class:Fasta	file:
 _filepath	samfile.cpp	/^    string _filepath;$/;"	m	class:SamFile	file:
+_gapped_seq	read.cpp	/^    char* _gapped_seq;$/;"	m	class:Read	file:
+_gapped_seq1	sw_matrix.cpp	/^    char* _gapped_seq1;$/;"	m	class:SWMatrix	file:
+_gapped_seq2	sw_matrix.cpp	/^    char* _gapped_seq2;$/;"	m	class:SWMatrix	file:
 _id	contig.cpp	/^    unsigned int _id;$/;"	m	class:Contig	file:
+_merged_qual	sw_matrix.cpp	/^    char* _merged_qual;$/;"	m	class:SWMatrix	file:
+_merged_seq	sw_matrix.cpp	/^    char* _merged_seq;$/;"	m	class:SWMatrix	file:
 _position	read.cpp	/^    unsigned int _position;$/;"	m	class:Read	file:
 _qual	contig.cpp	/^    char* _qual;$/;"	m	class:Contig	file:
 _qual	read.cpp	/^    char* _qual;$/;"	m	class:Read	file:
@@ -59,37 +70,33 @@ assemble_contigs	assembly.cpp	/^    void assemble_contigs(){$/;"	f	class:Assembl
 assemble_perfect_contigs	assembly.cpp	/^    void assemble_perfect_contigs(){$/;"	f	class:Assembly
 assemble_perfect_read	assembly.cpp	/^    void assemble_perfect_read(Contig &c, Read &read, unsigned int pos){$/;"	f	class:Assembly	file:
 assemble_perfect_read_left	assembly.cpp	/^    void assemble_perfect_read_left(Contig &c, Read &read, unsigned int read_pos){$/;"	f	class:Assembly	file:
-assemble_read	assembly.cpp	/^    void assemble_read(Contig &c, Read &read, unsigned int pos){$/;"	f	class:Assembly	file:
 assembled	read.cpp	/^    bool assembled() const{$/;"	f	class:Read
+c1	sw_matrix.cpp	/^    Contig* c1;$/;"	m	class:SWMatrix	file:
+c2	sw_matrix.cpp	/^    Contig* c2;$/;"	m	class:SWMatrix	file:
 compute_matrix	sw_matrix.cpp	/^    void compute_matrix(){$/;"	f	class:SWMatrix
 contig	read.cpp	/^    unsigned int contig() const {$/;"	f	class:Read
 contigs	assembly.cpp	/^    list<Contig> contigs;$/;"	m	class:Assembly	file:
 description	fasta.cpp	/^    void description(string new_description){$/;"	f	class:Fasta
 description	read.cpp	/^    const char* description() const{$/;"	f	class:Read
-fastapath	ssa.cpp	/^string fastapath = "out.fasta";$/;"	v
 find	read.cpp	/^    unsigned int find(char search){$/;"	f	class:Read
-gap_seqs	sw_matrix.cpp	/^    void gap_seqs(){$/;"	f	class:SWMatrix
-gapped_seq	read.cpp	/^    char* gapped_seq;$/;"	m	class:Read	file:
-gapped_seq1	sw_matrix.cpp	/^    string gapped_seq1;$/;"	m	class:SWMatrix	file:
-gapped_seq2	sw_matrix.cpp	/^    string gapped_seq2;$/;"	m	class:SWMatrix	file:
+free_strings	read.cpp	/^    void free_strings(){$/;"	f	class:Read	file:
+gapped_seq	read.cpp	/^    char* gapped_seq(){$/;"	f	class:Read
 gapped_size	read.cpp	/^    unsigned int gapped_size() const {$/;"	f	class:Read
 gapped_substr	read.cpp	/^    char* gapped_substr(int pos) const {$/;"	f	class:Read
 gapped_substr	read.cpp	/^    char* gapped_substr(int pos, int length) const {$/;"	f	class:Read
-get_gapped_seq1	sw_matrix.cpp	/^    string get_gapped_seq1(){$/;"	f	class:SWMatrix
-get_gapped_seq2	sw_matrix.cpp	/^    string get_gapped_seq2(){$/;"	f	class:SWMatrix
 h	sw_matrix.cpp	/^    int **h;$/;"	m	class:SWMatrix	file:
 height	sw_matrix.cpp	/^    int height;$/;"	m	class:SWMatrix	file:
 id	contig.cpp	/^    unsigned int id() const{$/;"	f	class:Contig
 import_from_file	fastqfile.cpp	/^    void import_from_file(char* filename){$/;"	f	class:FastqFile
 inc_qual	contig.cpp	/^    void inc_qual(int pos){$/;"	f	class:Contig
-inpath	ssa.cpp	/^char inpath[] = "\/home\/audioman\/Storage\/BioInfo\/reads\/glados_758\/phix_100k.fastq";$/;"	v
 main	ssa.cpp	/^int main(int argc, char* argv[]){$/;"	f
 main	tests.cpp	/^int main(int argc, char* argv[]){$/;"	f
 max_h	sw_matrix.cpp	/^    int max_h, max_w; \/\/coordinate of the highest score in matrix$/;"	m	class:SWMatrix	file:
 max_w	sw_matrix.cpp	/^    int max_h, max_w; \/\/coordinate of the highest score in matrix$/;"	m	class:SWMatrix	file:
+merge_seqs	sw_matrix.cpp	/^    void merge_seqs(){$/;"	f	class:SWMatrix
+operator <	read.cpp	/^    const bool operator < (const Read &rhs) const {$/;"	f	class:Read
 operator =	contig.cpp	/^    Contig& operator = (Contig &rhs){$/;"	f	class:Contig
 operator =	read.cpp	/^    Read& operator = (const Read &rhs){$/;"	f	class:Read
-outpath	ssa.cpp	/^char outpath[] = "asdf.txt";$/;"	v
 position	read.cpp	/^    unsigned int position(){$/;"	f	class:Read
 prepend	contig.cpp	/^    void prepend(char* added_seq){$/;"	f	class:Contig
 print_contents	fastqfile.cpp	/^    void print_contents(){$/;"	f	class:FastqFile
@@ -106,9 +113,8 @@ score	sw_matrix.cpp	/^    int score(){$/;"	f	class:SWMatrix
 seq	contig.cpp	/^    char* seq() const{$/;"	f	class:Contig
 seq	fasta.cpp	/^    void seq(string new_seq){$/;"	f	class:Fasta
 seq	read.cpp	/^    const char* seq() const{$/;"	f	class:Read
-seq1	sw_matrix.cpp	/^    string seq1; \/\/along top of matrix$/;"	m	class:SWMatrix	file:
-seq2	sw_matrix.cpp	/^    string seq2; \/\/along left side of matrix$/;"	m	class:SWMatrix	file:
 set_description	read.cpp	/^    void set_description(const char *new_description){$/;"	f	class:Read
+set_gapped_seq	read.cpp	/^    void set_gapped_seq(const char* new_gapped_seq){$/;"	f	class:Read
 set_position	read.cpp	/^    void set_position(unsigned int new_pos){$/;"	f	class:Read
 set_qual	read.cpp	/^    void set_qual(const char* new_qual){$/;"	f	class:Read
 set_rev_comp	read.cpp	/^    void set_rev_comp(){$/;"	f	class:Read

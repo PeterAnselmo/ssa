@@ -65,6 +65,13 @@ public:
         }
     }
 
+    char* complete_seq(){
+        return _complete_seq;
+    }
+    char* complete_qual(){
+        return _complete_qual;
+    }
+
     void compute_matrix(){
         max_h = max_w = 0;
 
@@ -118,9 +125,6 @@ public:
 
     //Traceback the path from the bottom right to the top left of the matrix
     void merge_seqs(){
-        if(DEBUGGING){
-            printf("Merging Seqs of c%dxc%d (%dx%d)\n", c1->id(), c2->id(), width, height);
-        }
         //these will hold the sequences with "-" in gaps
         //we'll allocate the worst case scenario (length of both strings) to avoid the need to reallocate
         _gapped_seq1 = (char*)malloc(width+height+1);

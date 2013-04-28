@@ -231,84 +231,84 @@ public:
 
     //phase 2 - assemble contigs to eeach other, allowing mismatches
     void assemble_contigs(){
+        //keep looping as long as there a high quality matches
+        bool had_merge = true;
 
-        //loop over all the contigs, compare them to each other
-        list<Contig>::iterator c1;
-        for(c1 = contigs.begin(); c1 != contigs.end(); ++c1){
-
-            list<Contig>::iterator c2;
-            for(c2 = contigs.begin(); c2 != contigs.end(); ++c2){
-                if(c1->id() == c2->id()){
-                    continue;
-                }
-                SWMatrix m(*c1, *c2);
-                if(DEBUGGING2){
-                    printf("Matrix Score: %d\n", m.score());
-                }
-                if(m.score() >= CONTIG_MATCH_THRESHOLD){
-                    m.merge_seqs();
-                }
+        while(had_merge){
+            if(DEBUGGING){
+                printf("Restarting Contig Merge Loop.\n");
             }
+            had_merge = false;
+            //loop over all the contigs, compare them to each other
+            list<Contig>::iterator c1;
+            for(c1 = contigs.begin(); c1 != contigs.end(); ++c1){
 
-
-            /*
-            //if any reads were mapped in the last iteration
-            bool mapped_read = true;
-            while(mapped_read){
-            mapped_read = false;
-
-                if(DEBUGGING) {
-                    cout << "Restarting at the beginning of read list\n";
+                if(DEBUGGING){
+                    printf("Comparing contig %d against others\n", c1->id());
                 }
-
-                //loop over all unmatched reads
-                vector<Read>::iterator iter;
-                for( iter = reads.begin(); iter != reads.end(); ++iter){
-                    Read read = *iter;
-
-                    //if this read was already mapped
-                    if( read.assembled() ){
+                //needs to be while rather then for to handle deleting elements real time
+                list<Contig>::iterator c2 = contigs.begin();;
+                while(c2 != contigs.end()){
+                    if(c1->id() == c2->id()){
+                        ++c2;
                         continue;
                     }
 
-                    int high_score = 0;
-                    int high_pos = 0;
-                    vector<Read>::iterator high_iter;
-
-                    unsigned int end_pos = c.size() - MIN_OVERLAP;
-                    for(unsigned int i=0; i<end_pos; ++i){
-                        unsigned int compare_size = min({read.size(), c.size()-i});
-
-                        SWMatrix sw(c.substr(i,compare_size), read.substr(0,compare_size));
-                        SWMatrix rev_sw(c.substr(i,compare_size), read.rev_comp().substr(0,compare_size));
-
-                        if(DEBUGGING2){
-                            cout << "Score at pos: " << i << ":" << sw.score() << endl;
-                            cout << "RC Score at pos: " << i << ":" << rev_sw.score() << endl;
-                        }
-                        if( sw.score() > MATCH_THRESHOLD && sw.score() > high_score ){
-                            high_score = sw.score();
-                            high_iter = iter;
-                            high_pos = i;
-                        }
-                        if( rev_sw.score() > MATCH_THRESHOLD && rev_sw.score() > high_score ){
-                            high_score = rev_sw.score();
-                            high_iter = iter;
-                            high_pos = i;
-                            read.set_rev_comp();
-                        }
+                    //compute the score matrix using the sequences from the two contigs
+                    SWMatrix m(*c1, *c2);
+                    Contig* rev_c2 = c2->rev_comp();
+                    SWMatrix m2(*c1, *rev_c2);
+                    if(DEBUGGING2){
+                        printf("Matrix Score: %d\n", m.score());
                     }
-                    //ignoring assemblies at position 0, likely means that right half of seq
-                    //aligned to before start of reference
-                    if( high_score != 0 && high_pos != 0 ){
-                        assemble_read(c, *high_iter, high_pos);
-                        mapped_read = true;
+
+                    //if these two contigs are a match, merge the second one
+                    //into the first one and delete the second.
+                    if(m.score() >= CONTIG_MATCH_THRESHOLD){
+                        if(DEBUGGING){
+                            printf("Merging Contigs %d & %d\n", c1->id(), c2->id());
+                        }
+                        had_merge = true;
+                        m.merge_seqs();
+                        c1->set_seq(m.complete_seq(), false);
+                        c1->set_qual(m.complete_qual());
+                        contigs.erase(c2++);
+
+                    //if the rev_comp of the second matches, merge it into the first
+                    } else if (m2.score() > CONTIG_MATCH_THRESHOLD ){
+                        if(DEBUGGING){
+                            printf("Merging Contigs %d & rev %d\n", c1->id(), c2->id());
+                        }
+                        had_merge = true;
+                        m2.merge_seqs();
+                        c1->set_seq(m2.complete_seq(), false);
+                        c1->set_qual(m2.complete_qual());
+                        contigs.erase(c2++);
+                    } else {
+                        ++c2;
                     }
-                }
-            }
-            */
-        }
+                    delete(rev_c2);
+                }//inner contigs
+            }//outer contigs
+        }//while had merge
     }
+
+    char* final_seq(){
+        list<Contig>::iterator max;
+        unsigned int max_size = 0;
+
+        for(list<Contig>::iterator c = contigs.begin(); c != contigs.end(); ++c){
+            if(c->size() > max_size){
+                max_size = c->size();
+                max = c;
+            }
+        }
+        if(max_size == 0){
+            printf("Error, unable to select final contig");
+        }
+        return max->seq();
+    }
+
 
     void trim_contigs(){
         list<Contig>::iterator contig = contigs.begin();

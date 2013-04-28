@@ -11,7 +11,7 @@ const int QUAL_OFFSET = 32;
 
 //number of bases in common with edges of consensus & read
 //during perfect read assembly stage
-const int MIN_OVERLAP = 20;
+const int MIN_OVERLAP = 25;
 
 //when trimming contigs, bases with lower than this quality
 //will be removed from edges. Contigs consisting of only bases below
@@ -20,7 +20,7 @@ const unsigned int CONTIG_TRIM_QUALITY = 2;
 
 //mininum Conitig SW score to consider a match,
 //this will need to be adjusted after adjusting match/mismatch scores
-const int CONTIG_MATCH_THRESHOLD = 16;
+const int CONTIG_MATCH_THRESHOLD = 20;
 
 //SW Comparison Scores
 const int SW_W_MATCH = 2;

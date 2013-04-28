@@ -89,12 +89,74 @@ public:
     char* qual() const {
         return _qual;
     }
+
+    Contig* rev_comp(){
+        char *rev = (char *)malloc(size()+1);
+
+        for(unsigned int i=0; i <size(); ++i){
+            int pos = size()-1-i;
+            switch(_seq[pos]){
+                case 'A':
+                    rev[i] = 'T';
+                break;
+                case 'T':
+                    rev[i] = 'A';
+                break;
+                case 'C':
+                    rev[i] = 'G';
+                break;
+                case 'G':
+                    rev[i] = 'C';
+                break;
+                case 'N':
+                    rev[i] = 'N';
+                break;
+            }
+        }
+        rev[size()] = '\0';
+
+        char *rev_qual = (char*)malloc(size()+1);
+        for(unsigned int i=0; i<size(); ++i){
+            int pos = size()-1-i;
+            rev_qual[i] = _qual[pos];
+        }
+        rev_qual[size()] = '\0';
+
+        //Contig* temp = (Contig*)malloc(sizeof(Contig));
+        Contig* temp = new Contig();
+        temp->set_id(_id);
+        temp->set_seq(rev, false);
+        temp->set_qual(rev_qual);
+
+        free(rev);
+        free(rev_qual);
+
+        return temp;
+    }
     
     char* seq() const{
         return _seq;
     }
 
-    void set_seq(const char* new_seq){
+    void set_id(unsigned int new_id){
+        _id = new_id;
+    }
+
+    void set_qual(const char* new_qual){
+        int length = strlen(new_qual);
+        if(_qual == NULL){
+            _qual = (char*)malloc(length+1);
+        } else {
+            _qual = (char*)realloc(_qual, length+1);
+        }
+        if(_qual == NULL){
+            printf("Memory Allocation Error.\n");
+            exit(1);
+        }
+        memcpy(_qual, new_qual, length+1);
+    }
+
+    void set_seq(const char* new_seq, bool initialize_qual = true){
         int length = strlen(new_seq);
         if(_seq == NULL){
             _seq = (char*)malloc(length+1);
@@ -106,15 +168,17 @@ public:
             exit(1);
         }
         memcpy(_seq, new_seq, length+1);
-        if(_qual == NULL){
-            _qual = (char*)malloc(length+1);
-        } else {
-            _qual = (char*)realloc(_qual, length+1);
+        if( initialize_qual ){
+            if(_qual == NULL){
+                _qual = (char*)malloc(length+1);
+            } else {
+                _qual = (char*)realloc(_qual, length+1);
+            }
+            for(int i=0; i<length; ++i){
+                _qual[i] = '!';
+            }
+            _qual[length] = '\0';
         }
-        for(int i=0; i<length; ++i){
-            _qual[i] = '!';
-        }
-        _qual[length] = '\0';
     }
 
     void set_substr(int start, int length){

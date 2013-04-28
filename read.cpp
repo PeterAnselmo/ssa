@@ -140,7 +140,9 @@ public:
     }
 
     void set_rev_comp(){
-        strcpy(_seq, rev_comp());
+        char* rev = rev_comp();
+        strcpy(_seq, rev);
+        free(rev);
         //todo - dry up string reversal
         //reverse(_qual.begin(), _qual.end());
     }
