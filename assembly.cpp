@@ -11,21 +11,8 @@
 
 using namespace std;
 
-//number of bases in common with edges of consensus & read
-//during perfect read assembly stage
-const int MIN_OVERLAP = 20;
-
 //max number of initial perfect match contigs to assemble
-const unsigned int CONTIG_CAP = 1000;
-
-//when trimming contigs, bases with lower than or eqaual to this quality
-//will be removed from edges. Contigs consisting of only bases below
-//this quality will be ommitted from contig assembly
-const unsigned int CONTIG_TRIM_QUALITY = 1;
-
-//mininum Conitig SW score to consider a match,
-//this will need to be adjusted after adjusting match/mismatch scores
-const int CONTIG_MATCH_THRESHOLD = 30;
+const unsigned int CONTIG_CAP = 500;
 
 class Assembly {
 public:
@@ -159,9 +146,8 @@ public:
         }
     }
 
-/*
+    /*
     void assemble_perfect_contigs_cuda(){
-
         //convert reads to array
         Read *h_reads;
         Read *d_reads;
@@ -240,7 +226,6 @@ public:
             }
             contigs.push_back(c);
         }
-
     }
     */
 
@@ -257,12 +242,14 @@ public:
                     continue;
                 }
                 SWMatrix m(c1->seq(), c2->seq());
-                if(DEBUGGING3){
-                    m.print_matrix();
+                if(DEBUGGING2){
+                    printf("Matrix Score: %d\n", m.score());
                 }
-                if(m.score() > CONTIG_MATCH_THRESHOLD){
-                    //m.gap_seqs();
-                    //c1->merge(*c2);
+                if(m.score() >= CONTIG_MATCH_THRESHOLD){
+                    m.gap_seqs();
+                    if(DEBUGGING){
+                        printf("Merged Contigs %d and %d:\n%s\n", c1->id(), c2->id(), m.merged_seq());
+                    }
                 }
             }
 
