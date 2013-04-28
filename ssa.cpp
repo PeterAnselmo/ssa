@@ -6,7 +6,8 @@
 using namespace std;
 
 char outpath[] = "asdf.txt";
-char inpath[] = "/home/audioman/Storage/BioInfo/reads/glados_758/phix_10k.fastq";
+//char inpath[] = "/home/audioman/Storage/BioInfo/reads/glados_758/phix_10k.fastq";
+char inpath[] = "sample_1k.fastq";
 //char inpath[] = "/home/audioman/Storage/BioInfo/reads/illumina_phix/phix_10_by_hand.fastq";
 string fastapath = "out.fasta";
 

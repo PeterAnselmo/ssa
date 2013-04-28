@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include "read.cpp"
+#include "settings.cpp"
 
 using namespace std;
 
@@ -164,7 +165,7 @@ public:
     }
 
     void trim(char min_quality, vector<Read> &reads){
-        min_quality += 33;
+        min_quality += QUAL_OFFSET;
 
         //trim_left_size
         unsigned int start_pos = 0;

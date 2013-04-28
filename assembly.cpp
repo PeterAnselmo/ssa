@@ -241,15 +241,12 @@ public:
                 if(c1->id() == c2->id()){
                     continue;
                 }
-                SWMatrix m(c1->seq(), c2->seq());
+                SWMatrix m(*c1, *c2);
                 if(DEBUGGING2){
                     printf("Matrix Score: %d\n", m.score());
                 }
                 if(m.score() >= CONTIG_MATCH_THRESHOLD){
-                    m.gap_seqs();
-                    if(DEBUGGING){
-                        printf("Merged Contigs %d and %d:\n%s\n", c1->id(), c2->id(), m.merged_seq());
-                    }
+                    m.merge_seqs();
                 }
             }
 
