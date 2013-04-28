@@ -11,9 +11,6 @@
 
 using namespace std;
 
-//max number of initial perfect match contigs to assemble
-const unsigned int CONTIG_CAP = 500;
-
 class Assembly {
 public:
     vector<Read> reads;
