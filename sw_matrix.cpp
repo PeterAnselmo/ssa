@@ -118,6 +118,9 @@ public:
 
     //Traceback the path from the bottom right to the top left of the matrix
     void merge_seqs(){
+        if(DEBUGGING){
+            printf("Merging Seqs of c%dxc%d (%dx%d)\n", c1->id(), c2->id(), width, height);
+        }
         //these will hold the sequences with "-" in gaps
         //we'll allocate the worst case scenario (length of both strings) to avoid the need to reallocate
         _gapped_seq1 = (char*)malloc(width+height+1);
@@ -145,20 +148,25 @@ public:
             //diagonal - match
             //note, string position is -1 from grid position
             if( (c1->seq()[x-1] == c2->seq()[y-1]) && (h[y][x] == (h[y-1][x-1] + SW_W_MATCH)) ){
-                   
-                if(DEBUGGING3){ printf("Traceback: Diagonal Match\n"); }
+                --x;
+                --y;
 
                 _gapped_seq1[current_position] = c1->seq()[x];
                 _gapped_seq2[current_position] = c2->seq()[y];
                 _merged_seq[current_position] = c1->seq()[x];
                 _merged_qual[current_position] = c1->qual()[x] + c2->qual()[y] - QUAL_OFFSET;
-                --x;
-                --y;
+                if(DEBUGGING3){ printf("Traceback: Diagonal Match, %cvs%c, %cvs%c, final qual: %c\n",
+                        c1->seq()[x], 
+                        c2->seq()[y], 
+                        c1->qual()[x], 
+                        c2->qual()[y], 
+                        _merged_qual[current_position]); }
+
 
             //diagonal - mismatch       
             } else if( (c1->seq()[x-1] != c2->seq()[y-1]) && (h[y][x] == (h[y-1][x-1] + SW_W_MISMATCH))) {
-
-                if(DEBUGGING3){ printf("Traceback: Diagonal Mismatch\n"); }
+                --x;
+                --y;
 
                 _gapped_seq1[current_position] = c1->seq()[x];
                 _gapped_seq2[current_position] = c2->seq()[y];
@@ -170,11 +178,16 @@ public:
                     _merged_qual[current_position] = c2->qual()[y];
                 }
 
-                --x;
-                --y;
+                if(DEBUGGING3){ printf("Traceback: Diagonal Mismatch, %cvs%c, %cvs%c, final qual: %c\n",
+                        c1->seq()[x], 
+                        c2->seq()[y], 
+                        c1->qual()[x], 
+                        c2->qual()[y], 
+                        _merged_qual[current_position]); }
 
             //moving left - deletion in second sequence
             } else if ( h[y][x] == (h[y][x-1] + SW_W_MISMATCH) ){
+                --x;
                 
                 if(DEBUGGING3){ printf("Traceback: Left\n");}
 
@@ -182,10 +195,10 @@ public:
                 _gapped_seq2[current_position] = '-';
                 _merged_seq[current_position] = c1->seq()[x];
                 _merged_qual[current_position] = c1->qual()[x];
-                --x;
 
             //moving up - insertion in second sequence
             } else if ( h[y][x] == (h[y-1][x] + SW_W_MISMATCH) ) {
+                --y;
 
                 if(DEBUGGING3){ printf("Traceback: Up\n"); }
 
@@ -193,9 +206,10 @@ public:
                 _gapped_seq2[current_position] = c2->seq()[y];
                 _merged_seq[current_position] = c2->seq()[y];
                 _merged_qual[current_position] = c2->qual()[y];
-                --y;
 
             } else if( h[y][x] == 0 ){
+                --x;
+                --y;
                 
                 if(DEBUGGING3){ printf("Traceback Lost Path: Guessing Diagonal\n"); }
 
@@ -203,8 +217,6 @@ public:
                 _gapped_seq2[current_position] = c2->seq()[y];
                 _merged_seq[current_position] = c1->seq()[x];
                 _merged_qual[current_position] = '!';
-                --x;
-                --y;
                 
             } else {
                 printf("Error, could not compute valid traceback");
@@ -217,7 +229,7 @@ public:
         _gapped_seq2[current_position] = c2->seq()[y];
         if(c1->seq()[x] == c2->seq()[y]){
             _merged_seq[current_position] = c1->seq()[x];
-            _merged_qual[current_position] = c1->qual()[x] + c2->qual()[y];
+            _merged_qual[current_position] = c1->qual()[x] + c2->qual()[y] - QUAL_OFFSET;
         } else {
             if( c1->qual()[x] >= c2->qual()[x] ){
                 _merged_seq[current_position] = c1->seq()[x];
@@ -230,14 +242,15 @@ public:
 
         //move all backtracked sequences to start of their array
         int new_length = width + height - current_position;
+        ++current_position;
         memmove(&_gapped_seq1[0], &_gapped_seq1[current_position], new_length);
         _gapped_seq1[new_length] = '\0';
         memmove(&_gapped_seq2[0], &_gapped_seq2[current_position], new_length);
         _gapped_seq2[new_length] = '\0';
         memmove(&_merged_seq[0], &_merged_seq[current_position], new_length);
-        _gapped_seq2[new_length] = '\0';
+        _merged_seq[new_length] = '\0';
         memmove(&_merged_qual[0], &_merged_qual[current_position], new_length);
-        _gapped_seq2[new_length] = '\0';
+        _merged_qual[new_length] = '\0';
 
         if(DEBUGGING3){
             printf("Gapped Contigs:\n%s\n%s\n", _gapped_seq1, _gapped_seq2);
@@ -294,7 +307,7 @@ public:
         _complete_seq[pre_length + new_length + post_length] = '\0';
         _complete_qual[pre_length + new_length + post_length] = '\0';
 
-        if(DEBUGGING2){
+        if(DEBUGGING){
             printf("Merged Sequence:\n%s\n%s\n", _complete_seq, _complete_qual);
         }
     }
