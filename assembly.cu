@@ -16,6 +16,15 @@ __host__ __device__ void assemble_perfect_read(Contig *c, Read &read, unsigned i
 __host__ __device__ void assemble_perfect_read_left(Contig *c, Read &read, unsigned int pos);
 __global__ void map_reads_on_device(Contig *c, Read *reads, int num_reads);
 
+//http://stackoverflow.com/questions/14038589/what-is-the-canonical-way-to-check-for-errors-using-the-cuda-runtime-api
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
+if (code != cudaSuccess) {
+    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 class Assembly {
 public:
     Read* reads;
@@ -154,8 +163,8 @@ public:
         //copy all reads to device
         Read *d_reads;
         int reads_size = num_reads * sizeof(Read);
-        cudaMalloc( (void**)&d_reads, reads_size);
-        cudaMemcpy( d_reads, reads, reads_size, cudaMemcpyHostToDevice);
+        gpuErrchk( cudaMalloc( (void**)&d_reads, reads_size));
+        gpuErrchk( cudaMemcpy( d_reads, reads, reads_size, cudaMemcpyHostToDevice));
 
         int threads_per_block = 256;
         int num_blocks = num_reads / threads_per_block + 1;
@@ -189,8 +198,8 @@ public:
 
             //move contig onto device
             Contig *d_contig;
-            cudaMalloc( (void**)&d_contig, sizeof(Contig));
-            cudaMemcpy( d_contig, &c, sizeof(Contig), cudaMemcpyHostToDevice);
+            gpuErrchk( cudaMalloc( (void**)&d_contig, sizeof(Contig)) );
+            gpuErrchk( cudaMemcpy( d_contig, &c, sizeof(Contig), cudaMemcpyHostToDevice) );
 
             //if any reads were mapped in the last iteration
             bool mapped_read = true;
@@ -203,9 +212,10 @@ public:
 
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
                 map_reads_on_device<<<num_blocks, threads_per_block>>>(d_contig, d_reads, num_reads);
+                gpuErrchk( cudaPeekAtLastError() );
+                gpuErrchk( cudaDeviceSynchronize() );
 
-                cudaDeviceSynchronize();
-                cudaMemcpy( cPtr, d_contig, sizeof(Contig), cudaMemcpyDeviceToHost);
+                gpuErrchk( cudaMemcpy( cPtr, d_contig, sizeof(Contig), cudaMemcpyDeviceToHost));
 
                 contigs.push_back(*cPtr);
             }
@@ -435,6 +445,7 @@ private:
             return;
         }
 
+        printf("hello cuda");
         //if this read was already mapped
         if( reads[tid].assembled() ){
             return;
@@ -444,6 +455,7 @@ private:
             printf("Considering read: %s\n", reads[tid].seq());
         }
 
+        /*
         //unsigned int start_pos = c.size() - reads[tid].size();
         unsigned int end_pos = c->size() - MIN_OVERLAP;
 
@@ -501,6 +513,7 @@ private:
             free(read_rev_substr);
             free(contig_substr);
         }
+    */
     }
 
 
