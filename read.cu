@@ -5,6 +5,17 @@
 #include <cstdlib>
 #include <cstring>
 #include "cudastring.cu"
+#include "settings.cu"
+
+/*
+class NewRead{
+public:
+    char seq[READ_SIZE];
+    char qual[READ_SIZE];
+    NewRead(char new_seq[], char new_qual[]){
+        
+}
+*/
 
 class Read {
 private:
@@ -275,6 +286,8 @@ public:
             return;
         }
 
+        //hard-coded for now
+        new_size = READ_SIZE;
         new_seq = (char*)malloc(new_size+1);
         for(int i=0; i<new_size; ++i){
             new_seq[i] = _seq[i+num_bases];

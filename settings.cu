@@ -6,6 +6,9 @@ const bool DEBUGGING = true;
 const bool DEBUGGING2 = true;
 const bool DEBUGGING3 = true;
 
+//truncate all reads to this many chars
+//would be nice to get ride of this.
+const int READ_SIZE = 30;
 //conversion from quality of 1 to lowest printable ascii char (33-!)
 //Don't change this.
 const int QUAL_OFFSET = 32;

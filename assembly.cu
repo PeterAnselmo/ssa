@@ -14,7 +14,7 @@ using namespace std;
 
 __host__ __device__ void assemble_perfect_read(Contig *c, Read &read, unsigned int pos);
 __host__ __device__ void assemble_perfect_read_left(Contig *c, Read &read, unsigned int pos);
-__global__ void map_reads_on_device(Contig *c, Read *reads, int num_reads);
+__global__ void map_reads_on_device(Contig *c, Read **reads, int num_reads);
 
 //http://stackoverflow.com/questions/14038589/what-is-the-canonical-way-to-check-for-errors-using-the-cuda-runtime-api
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -160,11 +160,38 @@ public:
 
     void assemble_perfect_contigs_cuda(){
 
+        /*
+        char *all_seqs;
+        char *rev_seqs;
+        all_seqs = (char*)malloc(READ_SIZE*num_reads);
+        rev_seqs = (char*)malloc(READ_SIZE*num_reads);
+        for(int i=0; i<num_reads; ++i){
+            for(int j=0; j<READ_SIZE; ++j){
+                all_seqs[i*READ_SIZE+j] = reads[i].seq()[j];
+                rev_seqs[i*READ_SIZE+j] = reads[i].rev_seq()[j];
+            }
+        }
+
+        int *match_pos
+        match_pos = (int*)malloc(num_reads);
+        */
+
         //copy all reads to device
-        Read *d_reads;
+        Read **d_reads;
         int reads_size = num_reads * sizeof(Read);
+        d_reads = new Read*[num_reads];
+        for(int i=0; i<num_reads; ++i){
+            gpuErrchk( cudaMalloc( (void**)d_reads[i], reads_size));
+            gpuErrchk( cudaMemcpy( d_reads[i], &reads[i], sizeof(Read), cudaMemcpyHostToDevice) );
+        }
         gpuErrchk( cudaMalloc( (void**)&d_reads, reads_size));
-        gpuErrchk( cudaMemcpy( d_reads, reads, reads_size, cudaMemcpyHostToDevice));
+        gpuErrchk( cudaMemcpy( d_reads, &reads, reads_size, cudaMemcpyHostToDevice));
+
+        /*
+        char *d_seqs;
+        gpuErrchk( cudaMalloc( (void**)&d_seqs, READ_SIZE*num_reads));
+        gpuErrchk( cudaMemcpy( d_seqs, all_seqs, READ_SIZE*num_reads, cudaMemcpyHostToDevice));
+        */
 
         int threads_per_block = 256;
         int num_blocks = num_reads / threads_per_block + 1;
@@ -420,9 +447,9 @@ private:
             }
             c->prepend(new_seq);
             #ifndef __CUDA_ARCH__
-//                c->unshift_aligned_reads(strlen(new_seq), reads, num_reads);
+                 //c->unshift_aligned_reads(strlen(new_seq), reads, num_reads);
             #else
- //               c->unshift_aligned_reads(cudaStrlen(new_seq), reads, num_reads);
+                 //c->unshift_aligned_reads(cudaStrlen(new_seq), reads, num_reads);
             #endif
 
             if(DEBUGGING){
@@ -437,7 +464,7 @@ private:
     }
 
 
-    __global__ void map_reads_on_device(Contig *c, Read *reads, int num_reads){
+    __global__ void map_reads_on_device(Contig *c, Read **reads, int num_reads){
         int tid = blockIdx.x*blockDim.x + threadIdx.x;
 
         //there may be a few extra threads called, make sure in range
@@ -446,14 +473,17 @@ private:
         }
 
         printf("hello cuda");
+
+/*
         //if this read was already mapped
-        if( reads[tid].assembled() ){
+        if( reads[tid]->assembled() ){
             return;
         }
 
         if(DEBUGGING2){
-            printf("Considering read: %s\n", reads[tid].seq());
+            printf("Considering read: %s\n", reads[tid]->seq());
         }
+        */
 
         /*
         //unsigned int start_pos = c.size() - reads[tid].size();
