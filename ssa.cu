@@ -3,8 +3,6 @@
 #include "assembly.cu"
 #include "fasta.cu"
 
-using namespace std;
-
 string fastapath = "out.fasta";
 
 int main(int argc, char* argv[]){
@@ -20,8 +18,8 @@ int main(int argc, char* argv[]){
     }
 
     Assembly assem(fastq);
-    assem.assemble_perfect_contigs();
-    //assem.assemble_perfect_contigs_cuda();
+    //assem.assemble_perfect_contigs();
+    assem.assemble_perfect_contigs_cuda();
     assem.trim_contigs();
     printf("Perfect Contigs assembled.\n");
     assem.print_contigs();

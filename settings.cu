@@ -3,8 +3,8 @@
 
 //display debugging info of various verbosity
 const bool DEBUGGING = true; 
-const bool DEBUGGING2 = false;
-const bool DEBUGGING3 = false;
+const bool DEBUGGING2 = true;
+const bool DEBUGGING3 = true;
 
 //conversion from quality of 1 to lowest printable ascii char (33-!)
 //Don't change this.

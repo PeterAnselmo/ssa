@@ -4,12 +4,17 @@
 #include <algorithm>
 #include <iomanip>
 #include <list>
+#include "stdio.h"
 #include "contig.cu"
 #include "fastqfile.cu"
 #include "read.cu"
 #include "sw_matrix.cu"
 
 using namespace std;
+
+__host__ __device__ void assemble_perfect_read(Contig *c, Read &read, unsigned int pos);
+__host__ __device__ void assemble_perfect_read_left(Contig *c, Read &read, unsigned int pos);
+__global__ void map_reads_on_device(Contig *c, Read *reads, int num_reads);
 
 class Assembly {
 public:
@@ -33,6 +38,7 @@ public:
         //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
         while(pass < CONTIG_CAP){
             Contig c(pass++);
+            Contig *cPtr = &c;
 
             //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
@@ -92,7 +98,7 @@ public:
                             printf("Considering overlap: %s | %s\n", contig_substr, read_substr);
                         }
                         if( !reads[i].assembled() && strcmp(contig_substr, read_substr) == 0){
-                            assemble_perfect_read(c, reads[i], j);
+                            assemble_perfect_read(cPtr, reads[i], j);
                             mapped_read = true;
                         }
                         free(read_substr);
@@ -102,7 +108,7 @@ public:
                         }
                         if( !reads[i].assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             reads[i].set_rev_comp();
-                            assemble_perfect_read(c, reads[i], j);
+                            assemble_perfect_read(cPtr, reads[i], j);
                             mapped_read = true;
                         }
                         free(read_rev_substr);
@@ -121,7 +127,7 @@ public:
                             printf("Considering overlap: %s | %s\n", read_substr, contig_substr);
                         }
                         if( !reads[i].assembled() && strcmp(read_substr, contig_substr) == 0 ){
-                            assemble_perfect_read_left(c, reads[i], j);
+                            assemble_perfect_read_left(cPtr, reads[i], j);
                             mapped_read = true;
                         }
                         free(read_substr);
@@ -131,7 +137,7 @@ public:
                         }
                         if( !reads[i].assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             reads[i].set_rev_comp();
-                            assemble_perfect_read_left(c, reads[i], j);
+                            assemble_perfect_read_left(cPtr, reads[i], j);
                             mapped_read = true;
                         }
                         free(read_rev_substr);
@@ -143,22 +149,71 @@ public:
         }
     }
 
-    /*
     void assemble_perfect_contigs_cuda(){
-        //convert reads to array
-        Read *h_reads;
+
+        //copy all reads to device
         Read *d_reads;
-        h_reads = &reads[0];
+        int reads_size = num_reads * sizeof(Read);
+        cudaMalloc( (void**)&d_reads, reads_size);
+        cudaMemcpy( d_reads, reads, reads_size, cudaMemcpyHostToDevice);
 
         int threads_per_block = 256;
-        int num_blocks = reads.size() / threads_per_block + 1;
+        int num_blocks = num_reads / threads_per_block + 1;
 
-        //copy congig to device
-        //copy reads to device
+        unsigned int pass = 0;
+        //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
+        while(pass < CONTIG_CAP){
+            Contig c(pass++);
+            Contig *cPtr = &c;
 
+            //find the first unmapped read with no "n" bases to seed the contig
+            bool all_mapped = true;
+
+            for(int i=0; i<num_reads; ++i){
+                if( !reads[i].assembled() && reads[i].find('N') == reads[i].size()){
+                    reads[i].assemble(c.id(), 0);
+                    c.set_seq(reads[i].seq());
+                    all_mapped = false;
+                    break;
+                }
+            }
+
+            //if all the reads were mapped before hitting the contig cap, exit
+            if( all_mapped ){
+                return;
+            }
+
+            if(DEBUGGING) {
+                cout << "Starting new contig with sequence:\n" << c.seq() << endl;
+            }
+
+            //move contig onto device
+            Contig *d_contig;
+            cudaMalloc( (void**)&d_contig, sizeof(Contig));
+            cudaMemcpy( d_contig, &c, sizeof(Contig), cudaMemcpyHostToDevice);
+
+            //if any reads were mapped in the last iteration
+            bool mapped_read = true;
+            while(mapped_read){
+                mapped_read = false;
+
+                if(DEBUGGING) {
+                    cout << "Restarting at the beginning of read list\n";
+                }
+
+                //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
+                map_reads_on_device<<<num_blocks, threads_per_block>>>(d_contig, d_reads, num_reads);
+
+                cudaDeviceSynchronize();
+                cudaMemcpy( cPtr, d_contig, sizeof(Contig), cudaMemcpyDeviceToHost);
+
+                contigs.push_back(*cPtr);
+            }
         }
+
+        //copy reads back from device
+        cudaMemcpy( reads, d_reads, reads_size, cudaMemcpyDeviceToHost);
     }
-    */
 
     //phase 2 - assemble contigs to eeach other, allowing mismatches
     void assemble_contigs(){
@@ -173,7 +228,6 @@ public:
             //loop over all the contigs, compare them to each other
             list<Contig>::iterator c1;
             for(c1 = contigs.begin(); c1 != contigs.end(); ++c1){
-
                 if(DEBUGGING){
                     printf("Comparing contig %d against others\n", c1->id());
                 }
@@ -292,59 +346,27 @@ public:
     }
 
 private:
-    /*
-    void assemble_read(Contig &c, Read &read, unsigned int pos){
 
-        unsigned int overlap_size = min(read.size(), c.size()-pos);
+};
 
-        if(DEBUGGING){
-            cout << "Assembling Read: " << read.seq() << " to contig " << c.id() << " at " << pos << endl;
-        }
-        read.assemble(c.id(), pos);
-
-        SWMatrix sw(c.substr(pos, read.size()), read.seq());
-        sw.gap_seqs();
-        strcpy(read.gapped_seq, sw.get_gapped_seq2().c_str());
-
-        //if the read extends to the right of the c.seq
-        if( overlap_size < read.gapped_size() ){
-            if(DEBUGGING){
-                cout << "overlap size: " << overlap_size << endl;
-                cout << "Read size: " << read.size() << endl;
-            }
-            for(unsigned int i=0; i<overlap_size; ++i){
-                if(c.seq()[pos+i] == read.gapped_seq[i] ){
-                    c.inc_qual(pos+i);
-                }
-            }
-            char* new_seq = read.gapped_substr(overlap_size);
-            if(DEBUGGING){
-                cout << "adding " << new_seq << " to reference.\n";
-            }
-            c.append(new_seq);
-        }
-    }
-    */
-
-
-    __host__ __device__ void assemble_perfect_read(Contig &c, Read &read, unsigned int pos){
+    __host__ __device__ void assemble_perfect_read(Contig *c, Read &read, unsigned int pos){
         unsigned int overlap_size;
-        if(read.size() < (c.size()-pos)){
+        if(read.size() < (c->size()-pos)){
            overlap_size = read.size();
         } else {
-           overlap_size = c.size()-pos;
+           overlap_size = c->size()-pos;
         }
 
         if(DEBUGGING){
-            printf("Assembling read: %s to contig %d at %d, overlap size: %u\n", read.seq(), c.id(), pos, overlap_size);
+            printf("Assembling read: %s to contig %d at %d, overlap size: %u\n", read.seq(), c->id(), pos, overlap_size);
         }
 
         //assemble the read here
-        read.assemble(c.id(), pos);
+        read.assemble(c->id(), pos);
 
         //increment the quality for all of the overlapping bases at the right of the contig
         for(unsigned int j=0; j<overlap_size; ++j){
-            c.inc_qual(pos+j);
+            c->inc_qual(pos+j);
         }
 
         if( overlap_size < read.size() ){
@@ -353,31 +375,31 @@ private:
             if(DEBUGGING){
                 printf("Adding %s to end of reference\n", new_seq);
             }
-            c.append(new_seq);
+            c->append(new_seq);
             free(new_seq);
 
             if(DEBUGGING){
-                printf("New Reference:\n%s\n", c.seq());
+                printf("New Reference:\n%s\n", c->seq());
             }
         }
     }
 
-    __host__ __device__ void assemble_perfect_read_left(Contig &c, Read &read, unsigned int pos){
+    __host__ __device__ void assemble_perfect_read_left(Contig *c, Read &read, unsigned int pos){
         unsigned int overlap_size;
-        if(read.size() < (c.size()-pos)){
+        if(read.size() < (c->size()-pos)){
            overlap_size = read.size();
         } else {
-           overlap_size = c.size()-pos;
+           overlap_size = c->size()-pos;
         }
 
 
         if(DEBUGGING){
-            printf("Assembling Read: %s to contig %d at pos %d with overlap %d\n", read.seq(), c.id(), pos, overlap_size);
+            printf("Assembling Read: %s to contig %d at pos %d with overlap %d\n", read.seq(), c->id(), pos, overlap_size);
         }
 
         //increment the quality for all of the overlapping bases at the left of the contig
         for(unsigned int j=0; j<overlap_size; ++j){
-            c.inc_qual(j);
+            c->inc_qual(j);
         }
 
         if( overlap_size < read.size() ){
@@ -386,38 +408,100 @@ private:
             if(DEBUGGING){
                 printf("Adding %s to beginning of reference\n", new_seq);
             }
-            c.prepend(new_seq);
+            c->prepend(new_seq);
             #ifndef __CUDA_ARCH__
-                c.unshift_aligned_reads(strlen(new_seq), reads, num_reads);
+//                c->unshift_aligned_reads(strlen(new_seq), reads, num_reads);
             #else
-                c.unshift_aligned_reads(cudaStrlen(new_seq), reads, num_reads);
+ //               c->unshift_aligned_reads(cudaStrlen(new_seq), reads, num_reads);
             #endif
 
             if(DEBUGGING){
-                printf("New Reference:\n%s\n", c.seq());
+                printf("New Reference:\n%s\n", c->seq());
             }
             free(new_seq);
         }
        
         //assemble the read here
         //do it after prepending to sequence, so it is not shifted
-        read.assemble(c.id(), 0);
+        read.assemble(c->id(), 0);
     }
 
-};
 
-/*
-__global__ void compute_overlaps(Read *reads, int num_reads, Contig *c){
-    int tid = blockIdx.x*blockDim.x + threadIdx.x;
+    __global__ void map_reads_on_device(Contig *c, Read *reads, int num_reads){
+        int tid = blockIdx.x*blockDim.x + threadIdx.x;
 
-    //there may be a few extra threads called, make sure in range
-    if( tid < num_reads ){
-        Read read = reads[tid];
+        //there may be a few extra threads called, make sure in range
+        if( tid >= num_reads ){
+            return;
+        }
 
+        //if this read was already mapped
+        if( reads[tid].assembled() ){
+            return;
+        }
 
+        if(DEBUGGING2){
+            printf("Considering read: %s\n", reads[tid].seq());
+        }
+
+        //unsigned int start_pos = c.size() - reads[tid].size();
+        unsigned int end_pos = c->size() - MIN_OVERLAP;
+
+        //compare right side of contig to left side of read
+        //start position depends on whether trying to align reads
+        //for(unsigned int i=start_pos; i<end_pos; ++i){
+        for(unsigned int j=0; j<end_pos; ++j){
+            
+            unsigned int compare_size = min(reads[tid].size(), c->size()-j);
+
+            char *read_substr = reads[tid].substr(0,compare_size);
+            char *contig_substr = c->substr(j,compare_size);
+            if(DEBUGGING2){
+                printf("Considering overlap: %s | %s\n", contig_substr, read_substr);
+            }
+            if( !reads[tid].assembled() && cudaStrcmp(contig_substr, read_substr) == 0){
+                assemble_perfect_read(c, reads[tid], j);
+            }
+            free(read_substr);
+            char *read_rev_substr = reads[tid].rev_substr(0,compare_size);
+            if(DEBUGGING2){
+                printf("Considering overlap: %s | %s\n", contig_substr, read_rev_substr);
+            }
+            if( !reads[tid].assembled() && cudaStrcmp(contig_substr, read_rev_substr) == 0 ){
+                reads[tid].set_rev_comp();
+                assemble_perfect_read(c, reads[tid], j);
+            }
+            free(read_rev_substr);
+            free(contig_substr);
+        }
+        
+        //compare left side of contig to right side of read
+        end_pos = reads[tid].size() - MIN_OVERLAP;
+        for(unsigned int j=0; j<end_pos; ++j){
+            
+            unsigned int compare_size = min(c->size(), reads[tid].size()-j);
+
+            char *read_substr = reads[tid].substr(j,compare_size);
+            char *contig_substr = c->substr(0,compare_size);
+            if(DEBUGGING2){
+                printf("Considering overlap: %s | %s\n", read_substr, contig_substr);
+            }
+            if( !reads[tid].assembled() && cudaStrcmp(read_substr, contig_substr) == 0 ){
+                assemble_perfect_read_left(c, reads[tid], j);
+            }
+            free(read_substr);
+            char *read_rev_substr = reads[tid].rev_substr(0,compare_size);
+            if(DEBUGGING2){
+                printf("Considering overlap: %s | %s\n", read_rev_substr, contig_substr);
+            }
+            if( !reads[tid].assembled() && cudaStrcmp(contig_substr, read_rev_substr) == 0 ){
+                reads[tid].set_rev_comp();
+                assemble_perfect_read_left(c, reads[tid], j);
+            }
+            free(read_rev_substr);
+            free(contig_substr);
+        }
     }
-}
-*/
 
 
 #endif

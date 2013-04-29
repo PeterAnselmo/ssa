@@ -10,8 +10,6 @@
 #include <math.h>
 #include "read.cu"
 
-using namespace std;
-
 class Fasta{
 private:
     string _filename;
