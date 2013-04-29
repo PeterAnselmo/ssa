@@ -4,7 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
-#include "settings.cpp"
+#include "settings.cu"
 
 using namespace std;
 

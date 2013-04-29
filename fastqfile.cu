@@ -2,11 +2,9 @@
 #define FASTQFILE_CU
 
 #include <fstream>
-#include <vector>
-#include <string>
 #include <iostream>
 #include <stdlib.h>
-#include "read.cpp"
+#include "read.cu"
 
 using namespace std;
 
@@ -15,10 +13,13 @@ const int TRIM_SIZE = 2;
 
 class FastqFile {
 private:
-    vector<Read> _reads;
+    Read *_reads;
+    int num_reads;
 
 public:
     FastqFile(char* filename){
+        //todo, make this smarter and detect num of reads
+        _reads = new Read[25000];
         import_from_file(filename);
         trim_reads();
     }
@@ -30,6 +31,7 @@ public:
         char line[256];
 
         int count = 0;
+        int read_num = 0;
         Read read;
         while(fgets(line,sizeof(line), fp)){
             //chomp newline
@@ -43,8 +45,10 @@ public:
             } else if (count % 4 == 2 ){
                 //read.plus(line.c_str());
             } else if (count % 4 == 3 ){
+                ++read_num;
                 read.set_qual(line);
-                _reads.push_back(read);
+                Read *temp = new Read(read);
+                _reads[read_num] = *temp;
             }
             ++count;
         }
@@ -53,24 +57,22 @@ public:
     }
 
     void trim_reads(){
-        vector<Read>::iterator read;
-        for(read = _reads.begin(); read != _reads.end(); ++read){
-            read->trim();
+        for(int i=0; i<num_reads; ++i){
+            _reads[i].trim();
         }
     }
 
-    const vector<Read> reads() const{
+    Read* reads() const{
         return _reads;
     }
 
     void print_contents(){
-        vector<Read>::iterator read;
-        for(read = _reads.begin(); read != _reads.end(); ++read){
+        for(int i=0; i<num_reads; ++i){
             printf("%s\n%s\n%c\n%s\n", 
-                    read->description(), 
-                    read->seq(), 
+                    _reads[i].description(), 
+                    _reads[i].seq(), 
                     '+',
-                    read->qual());
+                    _reads[i].qual());
         }
     }
 };
