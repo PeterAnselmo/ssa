@@ -33,9 +33,14 @@ public:
         int length = strlen(rhs._seq) +1;
         _id = rhs._id;
         _seq = (char*)malloc(length);
-        strncpy(_seq, rhs._seq, length);
         _qual = (char*)malloc(length);
-        strncpy(_qual, rhs._qual, length);
+        #ifndef __CUDA_ARCH__
+            strncpy(_seq, rhs._seq, length);
+            strncpy(_qual, rhs._qual, length);
+        #else
+            cudaStrncpy(_seq, rhs._seq, length);
+            cudaStrncpy(_qual, rhs._qual, length);
+        #endif
     }
 
     __host__ __device__ void append(char* added_seq){
@@ -266,16 +271,15 @@ public:
     //to move all reads to the left, and possibly trim them
     __host__ __device__ void shift_aligned_reads(unsigned int distance, Read *reads, int num_reads){
         for(int i=0; i<num_reads; ++i){
-            Read read = reads[i];
-            if(read.assembled() && read.contig() == _id){
-                int overlap = distance - read.position();
+            if(reads[i].assembled() && reads[i].contig() == _id){
+                int overlap = distance - reads[i].position();
                 if( overlap > 0){
-                    char *gapped_substr = read.gapped_substr(overlap);
-                    read.set_gapped_seq(gapped_substr);
+                    char *gapped_substr = reads[i].gapped_substr(overlap);
+                    reads[i].set_gapped_seq(gapped_substr);
                     free(gapped_substr);
-                    read.set_position(0);
+                    reads[i].set_position(0);
                 } else {
-                    read.set_position(read.position() - distance);
+                    reads[i].set_position(reads[i].position() - distance);
                 }
             }
         }
@@ -341,9 +345,14 @@ public:
         _id = rhs._id;
         int length = rhs.size() +1;
         _seq = (char*)malloc(length);
-        strncpy(_seq, rhs._seq, length);
         _qual = (char*)malloc(length);
-        strncpy(_seq, rhs._seq, length);
+        #ifndef __CUDA_ARCH__
+            strncpy(_seq, rhs._seq, length);
+            strncpy(_qual, rhs._qual, length);
+        #else
+            cudaStrncpy(_seq, rhs._seq, length);
+            cudaStrncpy(_qual, rhs._qual, length);
+        #endif
         return *this;
     }
 

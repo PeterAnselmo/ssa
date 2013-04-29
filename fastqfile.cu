@@ -14,17 +14,21 @@ const int TRIM_SIZE = 2;
 class FastqFile {
 private:
     Read *_reads;
-    int num_reads;
+    int _num_reads;
 
 public:
     FastqFile(char* filename){
         //todo, make this smarter and detect num of reads
         _reads = new Read[25000];
+        _num_reads = 0;
         import_from_file(filename);
         trim_reads();
     }
 
     void import_from_file(char* filename){
+        if(DEBUGGING3){
+            printf("Reading Fastq File: %s\n", filename);
+        }
         ifstream fh;
         fh.open(filename);
         FILE *fp = fopen(filename, "r");
@@ -45,19 +49,20 @@ public:
             } else if (count % 4 == 2 ){
                 //read.plus(line.c_str());
             } else if (count % 4 == 3 ){
-                ++read_num;
                 read.set_qual(line);
-                Read *temp = new Read(read);
-                _reads[read_num] = *temp;
+                //Read *temp = new Read(read);
+                //_reads[read_num] = *temp;
+                _reads[read_num] = read;
+                ++read_num;
             }
             ++count;
         }
-
+        _num_reads = read_num;
         fh.close();
     }
 
     void trim_reads(){
-        for(int i=0; i<num_reads; ++i){
+        for(int i=0; i<_num_reads; ++i){
             _reads[i].trim();
         }
     }
@@ -65,9 +70,12 @@ public:
     Read* reads() const{
         return _reads;
     }
+    int num_reads() const{
+        return _num_reads;
+    }
 
     void print_contents(){
-        for(int i=0; i<num_reads; ++i){
+        for(int i=0; i<_num_reads; ++i){
             printf("%s\n%s\n%c\n%s\n", 
                     _reads[i].description(), 
                     _reads[i].seq(), 

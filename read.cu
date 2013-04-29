@@ -151,7 +151,7 @@ public:
 
     __host__ __device__ void set_rev_comp(){
         char* rev = rev_comp();
-        strcpy(_seq, rev);
+        set_seq(rev);
         free(rev);
         //todo - dry up string reversal
         //reverse(_qual.begin(), _qual.end());
