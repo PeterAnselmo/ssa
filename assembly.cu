@@ -28,6 +28,7 @@ if (code != cudaSuccess) {
 class Assembly {
 public:
     Read* reads;
+    Read** reads2;
     int num_reads;
     list<Contig> contigs;
 
@@ -35,6 +36,12 @@ public:
     Assembly(FastqFile &input_file){
         reads = input_file.reads();
         num_reads = input_file.num_reads();
+        reads2 = new Read*[num_reads];
+        for(int i=0; i<num_reads; ++i){
+            reads2[i] = new Read(reads[i]);
+            cout << "ri" << reads[i].seq() << endl;
+            cout << "r2i" << reads2[i]->seq() << endl;
+        }
         if(num_reads == 0){
             cout << "[ERROR] no reads to align." << endl;
             exit(1);
@@ -178,14 +185,18 @@ public:
 
         //copy all reads to device
         Read **d_reads;
-        int reads_size = num_reads * sizeof(Read);
+        //Read **h_reads;
+        int reads_size = num_reads * sizeof(Read*);
+        //h_reads = new Read*[num_reads];
         d_reads = new Read*[num_reads];
         for(int i=0; i<num_reads; ++i){
+            cout << "num:" << i << endl;
+            d_reads[i] = new Read(*reads2[i]);
             gpuErrchk( cudaMalloc( (void**)d_reads[i], reads_size));
-            gpuErrchk( cudaMemcpy( d_reads[i], &reads[i], sizeof(Read), cudaMemcpyHostToDevice) );
+            gpuErrchk( cudaMemcpy( d_reads[i], reads2[i], sizeof(Read), cudaMemcpyHostToDevice) );
         }
-        gpuErrchk( cudaMalloc( (void**)&d_reads, reads_size));
-        gpuErrchk( cudaMemcpy( d_reads, &reads, reads_size, cudaMemcpyHostToDevice));
+        gpuErrchk( cudaMalloc( (void**)d_reads, reads_size));
+        gpuErrchk( cudaMemcpy( d_reads, reads2, reads_size, cudaMemcpyHostToDevice));
 
         /*
         char *d_seqs;
@@ -223,10 +234,12 @@ public:
                 cout << "Starting new contig with sequence:\n" << c.seq() << endl;
             }
 
+            /*
             //move contig onto device
             Contig *d_contig;
             gpuErrchk( cudaMalloc( (void**)&d_contig, sizeof(Contig)) );
             gpuErrchk( cudaMemcpy( d_contig, &c, sizeof(Contig), cudaMemcpyHostToDevice) );
+            */
 
             //if any reads were mapped in the last iteration
             bool mapped_read = true;
@@ -237,19 +250,23 @@ public:
                     cout << "Restarting at the beginning of read list\n";
                 }
 
+                /*
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
-                map_reads_on_device<<<num_blocks, threads_per_block>>>(d_contig, d_reads, num_reads);
+                //map_reads_on_device<<<num_blocks, threads_per_block>>>(d_contig, d_reads, num_reads);
                 gpuErrchk( cudaPeekAtLastError() );
                 gpuErrchk( cudaDeviceSynchronize() );
 
                 gpuErrchk( cudaMemcpy( cPtr, d_contig, sizeof(Contig), cudaMemcpyDeviceToHost));
+                */
 
                 contigs.push_back(*cPtr);
             }
         }
 
         //copy reads back from device
+        /*
         cudaMemcpy( reads, d_reads, reads_size, cudaMemcpyDeviceToHost);
+        */
     }
 
     //phase 2 - assemble contigs to eeach other, allowing mismatches
