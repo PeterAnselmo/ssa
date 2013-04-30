@@ -28,11 +28,13 @@ int main(int argc, char* argv[]){
     printf("Assembly completed, resulting in %u contigs.\n", static_cast<unsigned int>(assem.contigs.size()));
     assem.print_report();
 
-    Fasta fasta(fastapath);
-    fasta.description("SSA output");
-    fasta.seq(assem.final_seq());
-    fasta.write();
-    printf("Fasta file Written.\n");
+    if(assem.contigs.size() >= 1){
+        Fasta fasta(fastapath);
+        fasta.description("SSA output");
+        fasta.seq(assem.final_seq());
+        fasta.write();
+        printf("Fasta file Written.\n");
+    }
 
     return 0;
 }
