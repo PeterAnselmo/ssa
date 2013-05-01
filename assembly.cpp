@@ -32,7 +32,7 @@ public:
         //We'll create CONTIG_CAP contigs consisting of perfect matches between reads
         #pragma omp parallel for
         for(int pass = 0; pass<CONTIG_CAP; ++pass){
-            Contig c(pass++);
+            Contig c(pass);
 
             //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
@@ -165,6 +165,7 @@ public:
                     }
                 }
             }
+            #pragma omp critical(push_contig)
             contigs.push_back(c);
         }
     }

@@ -20,7 +20,6 @@ private:
 public:
     FastqFile(char* filename){
         import_from_file(filename);
-        trim_reads();
     }
 
     void import_from_file(char* filename){
@@ -44,19 +43,16 @@ public:
                 //read.plus(line.c_str());
             } else if (count % 4 == 3 ){
                 read.set_qual(line);
-                _reads.push_back(read);
+
+                //if read was worth keeping
+                if(read.trim()){
+                    _reads.push_back(read);
+                }
             }
             ++count;
         }
 
         fh.close();
-    }
-
-    void trim_reads(){
-        vector<Read>::iterator read;
-        for(read = _reads.begin(); read != _reads.end(); ++read){
-            read->trim();
-        }
     }
 
     const vector<Read> reads() const{

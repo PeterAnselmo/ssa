@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <cstring>
+#include "settings.cpp"
 
 class Read {
 private:
@@ -221,22 +222,32 @@ public:
         return substr(pos, length);
     }
 
-    void trim(int num_bases = 2){
+    bool trim(int num_bases = 2){
         char *new_seq;
-        int new_size = strlen(_seq) - 2*num_bases;
 
-        //read is too short to trim desired amount
-        if( new_size <= 0){
-            return;
+        //trim left side
+        unsigned int start_pos = num_bases; 
+        while(start_pos < size() && _seq[start_pos] == 'N'){
+            ++start_pos;
         }
 
-        new_seq = (char*)malloc(new_size+1);
-        for(int i=0; i<new_size; ++i){
-            new_seq[i] = _seq[i+num_bases];
+        //trim right side
+        unsigned int end_pos = size()-num_bases;
+        while(end_pos > 0 && _seq[end_pos-1] == 'N'){
+            --end_pos;
         }
-        new_seq[new_size] = '\0';
+
+        int new_size = end_pos - start_pos;
+        //if read is too short to use after trimming desired amount
+        if( new_size <= MIN_OVERLAP){
+            return false;
+        }
+
+        new_seq = substr(start_pos, new_size);
         free(_seq);
         _seq = new_seq;
+        new_seq = NULL;
+        return true;
     }
 
     void unassemble(){

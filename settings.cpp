@@ -17,7 +17,7 @@ const int MIN_OVERLAP = 20;
 //when trimming contigs, bases with lower than this setting
 //will be removed from edges. Contigs consisting of only bases below
 //this quality will be ommitted from contig assembly
-const unsigned int CONTIG_TRIM_QUALITY = 2;
+const unsigned int CONTIG_TRIM_QUALITY = 5;
 
 //max number of initial perfect match contigs to assemble
 const int CONTIG_CAP = 500;
