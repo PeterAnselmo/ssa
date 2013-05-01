@@ -13,7 +13,7 @@ A De Novo genome assembler written by Peter Anselmo.  Written using C, C++, STL 
 The program expects exactly one input, a fastq file. a new file "out.fasta" will be generated after the program completes.  Debugging information will be printed to standard out.
 
 ```
-$ ./ssa input_file.fastq
+$ ./ssa sample_reads/phix_100k.fastq > output.txt
 ```
 
 ###Feedback
