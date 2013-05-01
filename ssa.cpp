@@ -23,7 +23,9 @@ int main(int argc, char* argv[]){
     assem.assemble_perfect_contigs();
     assem.trim_contigs();
     printf("Perfect Contigs assembled.\n");
-    assem.print_contigs();
+    if(DEBUGGING){
+        assem.print_contigs();
+    }
     assem.assemble_contigs();
     printf("Assembly completed, resulting in %u contigs.\n", static_cast<unsigned int>(assem.contigs.size()));
     assem.print_report();

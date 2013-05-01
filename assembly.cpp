@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <list>
+#include <omp.h>
 #include "contig.cpp"
 #include "fastqfile.cpp"
 #include "read.cpp"
@@ -27,27 +28,32 @@ public:
 
     //phase 1 - assemble contigs based on perfect overlap in reads - no mismatch allowed
     void assemble_perfect_contigs(){
-        unsigned int pass = 0;
-        //We'll create CONTIG_CAP constigs consisting of perfect matches between reads
-        while(pass < CONTIG_CAP){
+
+        //We'll create CONTIG_CAP contigs consisting of perfect matches between reads
+        #pragma omp parallel for
+        for(int pass = 0; pass<CONTIG_CAP; ++pass){
             Contig c(pass++);
 
             //find the first unmapped read with no "n" bases to seed the contig
             bool all_mapped = true;
 
-            vector<Read>::iterator read;
-            for(read = reads.begin(); read != reads.end(); ++read){
-                if( !read->assembled() && read->find('N') == read->size()){
-                    read->assemble(c.id(), 0);
-                    c.set_seq(read->seq());
-                    all_mapped = false;
-                    break;
+            //Possibility exists for race condition between checking if a read is
+            //mapped, and using it to start a contig.  Need mutex here.
+            #pragma omp critical(seed_contig)
+            {
+                for(unsigned int i=pass; i<reads.size(); ++i){
+                    if( !reads[i].assembled() && reads[i].find('N') == reads[i].size()){
+                        reads[i].assemble(c.id(), 0);
+                        c.set_seq(reads[i].seq());
+                        all_mapped = false;
+                        break;
+                    }
                 }
             }
 
             //if all the reads were mapped before hitting the contig cap, exit
             if( all_mapped ){
-                return;
+                continue;
             }
 
             if(DEBUGGING) {
@@ -92,8 +98,13 @@ public:
                             printf("Considering overlap: %s | %s\n", contig_substr, read_substr);
                         }
                         if( !read->assembled() && strcmp(contig_substr, read_substr) == 0){
-                            assemble_perfect_read(c, *read, i);
-                            mapped_read = true;
+                            #pragma omp critical(assem_perfect)
+                            {
+                                if( !read->assembled() && strcmp(contig_substr, read_substr) == 0){
+                                    assemble_perfect_read(c, *read, i);
+                                    mapped_read = true;
+                                }
+                            }
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
@@ -101,9 +112,14 @@ public:
                             printf("Considering overlap: %s | %s\n", contig_substr, read_rev_substr);
                         }
                         if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
-                            read->set_rev_comp();
-                            assemble_perfect_read(c, *read, i);
-                            mapped_read = true;
+                            #pragma omp critical(assem_perfect)
+                            {
+                                if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
+                                    read->set_rev_comp();
+                                    assemble_perfect_read(c, *read, i);
+                                    mapped_read = true;
+                                }
+                            }
                         }
                         free(read_rev_substr);
                         free(contig_substr);
@@ -121,8 +137,13 @@ public:
                             printf("Considering overlap: %s | %s\n", read_substr, contig_substr);
                         }
                         if( !read->assembled() && strcmp(read_substr, contig_substr) == 0 ){
-                            assemble_perfect_read_left(c, *read, i);
-                            mapped_read = true;
+                            #pragma omp critical(assem_perfect)
+                            {
+                                if( !read->assembled() && strcmp(read_substr, contig_substr) == 0 ){
+                                    assemble_perfect_read_left(c, *read, i);
+                                    mapped_read = true;
+                                }
+                            }
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
@@ -130,9 +151,14 @@ public:
                             printf("Considering overlap: %s | %s\n", read_rev_substr, contig_substr);
                         }
                         if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
-                            read->set_rev_comp();
-                            assemble_perfect_read_left(c, *read, i);
-                            mapped_read = true;
+                            #pragma omp critical(assem_perfect)
+                            {
+                                if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
+                                    read->set_rev_comp();
+                                    assemble_perfect_read_left(c, *read, i);
+                                    mapped_read = true;
+                                }
+                            }
                         }
                         free(read_rev_substr);
                         free(contig_substr);
