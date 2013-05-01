@@ -21,7 +21,7 @@ public:
     Assembly(vector<Read> &new_reads){
         reads = new_reads;
         if(reads.empty()){
-            cout << "[ERROR] no reads to align." << endl;
+            printf("[ERROR] no reads to align.\n");
             exit(1);
         }
     }
