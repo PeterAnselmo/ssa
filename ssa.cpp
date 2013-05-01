@@ -13,23 +13,32 @@ int main(int argc, char* argv[]){
         printf("Please pass exactly one argument - the path to the input fastq file.\n");
         exit(1);
     }
-    FastqFile fastq(argv[1]);
+
+    //get reds from input file
+    Fastq input_file(argv[1]);
     printf("Fastq file Read.\n");
     if(DEBUGGING3){
-        fastq.print_contents();
+        input_file.print_contents();
     }
+    vector<Read> reads = input_file.reads();
 
-    Assembly assem(fastq);
+    //Create assembly object, this will handle all the heavy lifting.
+    Assembly assem(reads);
+
+    //phase 1 - assemble perfect contigs
     assem.assemble_perfect_contigs();
     assem.trim_contigs();
     printf("Perfect Contigs assembled.\n");
     if(DEBUGGING){
         assem.print_contigs();
     }
+
+    //phase 2 - merge contigs, allowing mismatches
     assem.assemble_contigs();
     printf("Assembly completed, resulting in %u contigs.\n", static_cast<unsigned int>(assem.contigs.size()));
     assem.print_report();
 
+    //generate fasta file output
     if(assem.contigs.size() >= 1){
         Fasta fasta(fastapath);
         fasta.description("SSA output");

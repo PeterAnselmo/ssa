@@ -6,7 +6,7 @@
 #include <list>
 #include <omp.h>
 #include "contig.cpp"
-#include "fastqfile.cpp"
+#include "fastq.cpp"
 #include "read.cpp"
 #include "sw_matrix.cpp"
 
@@ -18,8 +18,8 @@ public:
     list<Contig> contigs;
 
 public:
-    Assembly(FastqFile &input_file){
-        reads = input_file.reads();
+    Assembly(vector<Read> &new_reads){
+        reads = new_reads;
         if(reads.empty()){
             cout << "[ERROR] no reads to align." << endl;
             exit(1);
@@ -30,11 +30,12 @@ public:
     void assemble_perfect_contigs(){
 
         //We'll create CONTIG_CAP contigs consisting of perfect matches between reads
+        //each contig can (for the most part) assemble in parallel
         #pragma omp parallel for
         for(int pass = 0; pass<CONTIG_CAP; ++pass){
             Contig c(pass);
 
-            //find the first unmapped read with no "n" bases to seed the contig
+            //whether there are any valid umapped reads to seed a contig
             bool all_mapped = true;
 
             //Possibility exists for race condition between checking if a read is
@@ -49,7 +50,7 @@ public:
                         break;
                     }
                 }
-            }
+            }//end mutex
 
             //if all the reads were mapped before hitting the contig cap, exit
             if( all_mapped ){
@@ -57,16 +58,18 @@ public:
             }
 
             if(DEBUGGING) {
-                cout << "Starting new contig with sequence:\n" << c.seq() << endl;
+                printf("Starting new contig with sequence: %s\n", c.seq());
             }
 
             //if any reads were mapped in the last iteration
             bool mapped_read = true;
+
+            //keep looping and adding to contig until no more reads can be mapped
             while(mapped_read){
                 mapped_read = false;
 
-                if(DEBUGGING) {
-                    cout << "Restarting at the beginning of read list\n";
+                if(DEBUGGING2) {
+                    printf("Restarting at the beginning of read list\n");
                 }
 
                 //consider all reads for contig assembly, take the first that matches with > MIN_OVERLAP
@@ -104,7 +107,7 @@ public:
                                     assemble_perfect_read(c, *read, i);
                                     mapped_read = true;
                                 }
-                            }
+                            }//end mutex
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
@@ -119,7 +122,7 @@ public:
                                     assemble_perfect_read(c, *read, i);
                                     mapped_read = true;
                                 }
-                            }
+                            }//end mutex
                         }
                         free(read_rev_substr);
                         free(contig_substr);
@@ -143,7 +146,7 @@ public:
                                     assemble_perfect_read_left(c, *read, i);
                                     mapped_read = true;
                                 }
-                            }
+                            }//end mutex
                         }
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
@@ -158,7 +161,7 @@ public:
                                     assemble_perfect_read_left(c, *read, i);
                                     mapped_read = true;
                                 }
-                            }
+                            }//end mutex
                         }
                         free(read_rev_substr);
                         free(contig_substr);
@@ -177,10 +180,11 @@ public:
         bool had_merge = true;
 
         while(had_merge){
+            had_merge = false;
             if(DEBUGGING){
                 printf("Restarting Contig Merge Loop.\n");
             }
-            had_merge = false;
+            //
             //loop over all the contigs, compare them to each other
             list<Contig>::iterator c1;
             for(c1 = contigs.begin(); c1 != contigs.end(); ++c1){
@@ -188,6 +192,7 @@ public:
                 if(DEBUGGING){
                     printf("Comparing contig %d against others\n", c1->id());
                 }
+
                 //needs to be while rather then for to handle deleting elements real time
                 list<Contig>::iterator c2 = contigs.begin();;
                 while(c2 != contigs.end()){
@@ -235,6 +240,8 @@ public:
         }//while had merge
     }
 
+    //The end result of assembly. Ideally, there will be only one contig remaining after merging
+    //if the assembly was not awesome, there can be several contigs, in which case, we take the longest
     char* final_seq(){
         list<Contig>::iterator max;
         unsigned int max_size = 0;
@@ -260,6 +267,7 @@ public:
                 if(DEBUGGING){
                     printf("Deleting low-quality contig: %d\n", contig->id());
                 }
+                //this will erase the contig while at the same time increment the iterator
                 contigs.erase(contig++);
             } else {
                 ++contig;

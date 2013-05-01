@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "settings.cpp"
+#include "utils.cpp"
 
 class Read {
 private:
@@ -83,6 +84,7 @@ public:
 
     char* gapped_substr(int pos, int length) const {
         char *sub = (char *)malloc(sizeof(char)*(length+1));
+        check_ptr(sub);
         memcpy(sub, &_gapped_seq[pos], length);
         sub[length] = '\0';
         return sub;
@@ -102,6 +104,7 @@ public:
 
     char* rev_substr(int pos, int length) const {
         char *sub = (char *)malloc(length+1);
+        check_ptr(sub);
         char *rev = rev_comp();
         memcpy(sub, &rev[pos], length);
         free(rev);
@@ -111,6 +114,7 @@ public:
 
     char* rev_comp() const{
         char *rev = (char *)malloc(sizeof(char)*(size()+1));
+        check_ptr(rev);
 
         for(unsigned int i=0; i <size(); ++i){
             int pos = size()-1-i;
@@ -144,7 +148,7 @@ public:
         char* rev = rev_comp();
         strcpy(_seq, rev);
         free(rev);
-        //todo - dry up string reversal
+        //todo - set reversed qual scores
         //reverse(_qual.begin(), _qual.end());
     }
 
@@ -154,10 +158,8 @@ public:
         } else {
             _description = (char*)realloc(_description, strlen(new_description)+1);
         }
-        if(_description == NULL){
-            fprintf(stderr, "Memory Allocation Error\n");
-            exit(1);
-        }
+        check_ptr(_description);
+
         strncpy(_description, new_description, strlen(new_description)+1);
     }
 
@@ -167,11 +169,8 @@ public:
         } else {
             _gapped_seq = (char*)realloc(_gapped_seq, strlen(new_gapped_seq)+1);
         }
+        check_ptr(_gapped_seq);
 
-        if(_gapped_seq == NULL){
-            fprintf(stderr, "Memory Allocation Error\n");
-            exit(1);
-        }
         strncpy(_gapped_seq, new_gapped_seq, strlen(new_gapped_seq)+1);
     }
 
@@ -185,11 +184,8 @@ public:
         } else {
             _qual = (char*)realloc(_qual, strlen(new_qual)+1);
         }
+        check_ptr(_qual);
 
-        if(_qual == NULL){
-            fprintf(stderr, "Memory Allocation Error\n");
-            exit(1);
-        }
         strncpy(_qual, new_qual, strlen(new_qual)+1);
     }
 
@@ -199,10 +195,8 @@ public:
         } else {
             _seq = (char *)realloc(_seq, strlen(new_seq)+1);
         }
-        if(_seq == NULL){
-            fprintf(stderr, "Memory Allocation Error\n");
-            exit(1);
-        }
+        check_ptr(_seq);
+
         strncpy(_seq, new_seq, strlen(new_seq)+1);
     }
 
@@ -212,6 +206,8 @@ public:
 
     char* substr(int pos, int length) const {
         char *sub = (char *)malloc(length+1);
+        check_ptr(sub);
+
         memcpy(sub, &_seq[pos], length);
         sub[length] = '\0';
         return sub;

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "fastqfile.cu"
+#include "fastq.cu"
 #include "assembly.cpp"
 
 using namespace std;

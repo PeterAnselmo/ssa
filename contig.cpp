@@ -1,10 +1,10 @@
 #ifndef CONGTIG_H
 #define CONGTIG_H
 
-#include <algorithm>
 #include <vector>
 #include "read.cpp"
 #include "settings.cpp"
+#include "utils.cpp"
 
 using namespace std;
 
@@ -32,24 +32,30 @@ public:
         set_seq(new_seq);
     }
     Contig(const Contig &rhs){
-        int length = strlen(rhs._seq) +1;
+        int length = strlen(rhs._seq) +1; //+1 for \0 char
         _id = rhs._id;
         _seq = (char*)malloc(length);
+        check_ptr(_seq);
+
         strncpy(_seq, rhs._seq, length);
         _qual = (char*)malloc(length);
+        check_ptr(_qual);
+
         strncpy(_qual, rhs._qual, length);
     }
 
+    //add new bases to end of sequence.  Give them quality of 1
     void append(char* added_seq){
         int added_length = strlen(added_seq);
-        int current_length = size(); //need to grab this before changing quals
+        int current_length = size(); //need to store this before adding seq for changing quals
         int total_length = current_length + added_length;
 
         _seq = (char*)realloc(_seq, total_length+1);
+        check_ptr(_seq);
         memcpy(&_seq[current_length], added_seq, added_length+1);
-        //_seq[total_length] = '\0';
 
         _qual = (char*)realloc(_qual, total_length+1);
+        check_ptr(_qual);
         for(int i=current_length; i<total_length; ++i){
             _qual[i] = '!';
         }
@@ -61,25 +67,26 @@ public:
     }
 
     void inc_qual(int pos){
-        if(_qual[pos] < 126) {
+        if(_qual[pos] < MAX_QUAL) {
             _qual[pos] = _qual[pos] + 1;
         }
     }
 
+    //add more bases from front of sequence.  Give new bases quality of 1
     void prepend(char* added_seq){
         int added_length = strlen(added_seq);
-        int current_length = size(); //need to grab this before changing quals
+        int current_length = size(); //need to grab this before adding quals
         int total_length = size() + added_length;
 
         _seq = (char*)realloc(_seq, total_length+1);
-        if(_seq == NULL){
-            printf("Memory Allocation Error.\n");
-            exit(1);
-        }
+        check_ptr(_seq);
+
         memmove(&_seq[added_length], &_seq[0], current_length+1);
         memcpy(&_seq[0], added_seq, added_length);
 
         _qual = (char*)realloc(_qual, total_length+1);
+        check_ptr(_qual);
+
         memmove(&_qual[added_length], &_qual[0], current_length+1);
         for(int i=0; i<added_length; ++i){
             _qual[i] = '!';
@@ -90,6 +97,8 @@ public:
         return _qual;
     }
 
+    //compute and return the reverse complilment of the sequence
+    //caller should ensure that returned pointer is freed.
     Contig* rev_comp(){
         char *rev = (char *)malloc(size()+1);
 
@@ -116,6 +125,8 @@ public:
         rev[size()] = '\0';
 
         char *rev_qual = (char*)malloc(size()+1);
+        check_ptr(rev_qual);
+
         for(unsigned int i=0; i<size(); ++i){
             int pos = size()-1-i;
             rev_qual[i] = _qual[pos];
@@ -142,6 +153,8 @@ public:
         _id = new_id;
     }
 
+    //should only be called by copy constructors & assignment operators.
+    //usually quality should be itialized to 1 when new sequence is set.
     void set_qual(const char* new_qual){
         int length = strlen(new_qual);
         if(_qual == NULL){
@@ -149,41 +162,46 @@ public:
         } else {
             _qual = (char*)realloc(_qual, length+1);
         }
-        if(_qual == NULL){
-            printf("Memory Allocation Error.\n");
-            exit(1);
-        }
+        check_ptr(_qual);
+
         memcpy(_qual, new_qual, length+1);
     }
 
+    //assign a new sequence.  Except in the case of copying from a different contig, 
+    //it will usually be preferable to initialize the quality to 1 for all bases
     void set_seq(const char* new_seq, bool initialize_qual = true){
         int length = strlen(new_seq);
+
         if(_seq == NULL){
             _seq = (char*)malloc(length+1);
         } else {
             _seq = (char*)realloc(_seq, length+1);
         }
-        if(_seq == NULL){
-            printf("Memory Allocation Error.\n");
-            exit(1);
-        }
+        check_ptr(_seq);
+
         memcpy(_seq, new_seq, length+1);
+
         if( initialize_qual ){
             if(_qual == NULL){
                 _qual = (char*)malloc(length+1);
             } else {
                 _qual = (char*)realloc(_qual, length+1);
             }
+            check_ptr(_qual);
+
             for(int i=0; i<length; ++i){
-                _qual[i] = '!';
+                _qual[i] = 1 + QUAL_OFFSET;
             }
             _qual[length] = '\0';
         }
     }
 
+    //replaces sequence and quality by those within the region sepecified.
     void set_substr(int start, int length){
         char* new_seq = (char*)malloc(length + 1);
+        check_ptr(new_seq);
         char* new_qual = (char*)malloc(length + 1);
+        check_ptr(new_qual);
 
         memcpy(new_seq, &_seq[start], length);
         memcpy(new_qual, &_qual[start], length);
@@ -195,7 +213,6 @@ public:
 
         _seq = new_seq;
         _qual = new_qual;
-
     }
     
     //if sequence was removed from the start of the contig, it will be necessary
@@ -221,29 +238,36 @@ public:
         return strlen(_seq);
     }
 
+    //return part fo the sequence.  caller must be sure to free pointer returned
     char* substr(int start, int length){
         char* sub = (char*)malloc(length+1);
+        check_ptr(sub);
         memcpy(sub, &_seq[start], length);
         sub[length] = '\0';
         return sub;
     }
 
+    //trim low quality bases from both sides of contig. shift & trim all aligned
+    //reads if applicable.  If the contig has no bases above quality, unassemble
+    //all of it's reads, as it will be deleted by the caller.
     void trim(char min_quality, vector<Read> &reads){
         min_quality += QUAL_OFFSET;
 
-        //trim_left_size
+        //compute amount to trim on left side
         unsigned int start_pos = 0;
         while(start_pos < size() && _qual[start_pos] < min_quality){
             ++start_pos;
         }
 
-        //trim_right_size
+        //compute amount to trim on right side
         unsigned int end_pos = size();
         while(end_pos > 0 && _qual[end_pos-1] < min_quality){
             --end_pos;
         }
 
         int new_length = end_pos - start_pos;
+
+        //this contig is low quality and will be erased.  unassemble all of it's reads.
         if(new_length <= 0){ 
             new_length = 0; 
             vector<Read>::iterator read;
@@ -271,13 +295,19 @@ public:
         }
     }
 
+    //overloaded assignment operator for a deep copy.
     Contig& operator = (Contig &rhs){
         _id = rhs._id;
         int length = rhs.size() +1;
+
         _seq = (char*)malloc(length);
+        check_ptr(_seq);
         strncpy(_seq, rhs._seq, length);
+
         _qual = (char*)malloc(length);
+        check_ptr(_qual);
         strncpy(_seq, rhs._seq, length);
+
         return *this;
     }
 
@@ -289,7 +319,6 @@ public:
             free(_qual);
         }
     }
-
 };
 
 #endif

@@ -3,7 +3,7 @@ SSA - Super Slow Assembler
 
 A parallel de novo genome assembler written by Peter Anselmo. Written using C, C++, STL and OpenMP.
 
-This assembler using a two-stage greedy assembly algorithm. The first stage trims the reads and assembles into contigs only allowing exact matches. The second stage trims the contigs, and assembles using the Smith Waterman alogrithm. This allows for proper resolution of SNPs and (small) Indels.
+This assembler uses a two-stage greedy assembly algorithm. The first stage trims the reads and assembles into contigs only allowing exact matches. The second stage trims the contigs, and assembles using the Smith Waterman alogrithm. This allows for proper resolution of SNPs and (small) Indels.
 
 This assembler has been developed, tested and optimized for using Illumina HiSeq data and small genomes.
 

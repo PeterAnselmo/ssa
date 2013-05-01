@@ -1,31 +1,28 @@
-#ifndef FASTQFILE_CU
-#define FASTQFILE_CU
+#ifndef FASTQ_CPP
+#define FASTQ_CPP
 
 #include <fstream>
 #include <vector>
-#include <string>
-#include <iostream>
 #include <stdlib.h>
 #include "read.cpp"
 
 using namespace std;
 
-//number of bases to delete off both ends of the read
-const int TRIM_SIZE = 2;
-
-class FastqFile {
+class Fastq {
 private:
     vector<Read> _reads;
 
 public:
-    FastqFile(char* filename){
+    Fastq(char* filename){
         import_from_file(filename);
     }
 
     void import_from_file(char* filename){
-        ifstream fh;
-        fh.open(filename);
         FILE *fp = fopen(filename, "r");
+        if(fp == NULL){
+            printf("Error Reading input Fastq file");
+            exit(1);
+        }
         char line[256];
 
         int count = 0;
@@ -52,7 +49,7 @@ public:
             ++count;
         }
 
-        fh.close();
+        fclose(fp);
     }
 
     const vector<Read> reads() const{

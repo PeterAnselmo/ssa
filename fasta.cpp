@@ -3,12 +3,9 @@
 
 #include <fstream>
 #include <string>
-#include <string.h>
-#include <iostream>
 #include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
-#include "read.cpp"
+#include "settings.cpp"
 
 using namespace std;
 
@@ -30,18 +27,18 @@ public:
         _seq = new_seq;
     }
 
-    void write(int line_width = 80){
-        ofstream fh;
-        fh.open(_filename.c_str());
-        if( fh.fail() ){
+    void write(){
+        FILE *fh = fopen(_filename.c_str(), "w");
+        if( fh == NULL ){
             printf("Error opening Fasta file for writing.\n");
             exit(1);
         }
-        fh << ">" << _description << endl;
+        fprintf(fh, ">%s\n", _description.c_str());
 
-        int num_lines = ceil(_seq.size()/80.0);
+        int num_lines = ceil(static_cast<double>(_seq.size())/FASTA_LINE_WIDTH);
+
         for(int i=0; i<num_lines; ++i){
-            fh << _seq.substr(i*line_width, line_width) << endl;
+            fprintf(fh, "%s", _seq.substr(i * FASTA_LINE_WIDTH, FASTA_LINE_WIDTH).c_str());
         }
     }
 
