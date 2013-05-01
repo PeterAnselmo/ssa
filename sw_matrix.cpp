@@ -158,7 +158,11 @@ public:
                 _gapped_seq1[current_position] = c1->seq()[x];
                 _gapped_seq2[current_position] = c2->seq()[y];
                 _merged_seq[current_position] = c1->seq()[x];
-                _merged_qual[current_position] = c1->qual()[x] + c2->qual()[y] - QUAL_OFFSET;
+
+                int temp_qual = c1->qual()[x] + c2->qual()[y] - QUAL_OFFSET;
+                if(temp_qual > 126){ temp_qual = 126; }
+                _merged_qual[current_position] = temp_qual;
+
                 if(DEBUGGING3){ printf("Traceback: Diagonal Match, %cvs%c, %cvs%c, final qual: %c\n",
                         c1->seq()[x], 
                         c2->seq()[y], 
