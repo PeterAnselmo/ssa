@@ -118,7 +118,7 @@ public:
                             #pragma omp critical(assem_perfect)
                             {
                                 if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
-                                    read->set_rev_comp();
+                                    read->swap_rev_comp();
                                     assemble_perfect_read(c, *read, i);
                                     mapped_read = true;
                                 }
@@ -157,7 +157,7 @@ public:
                             #pragma omp critical(assem_perfect)
                             {
                                 if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
-                                    read->set_rev_comp();
+                                    read->swap_rev_comp();
                                     assemble_perfect_read_left(c, *read, i);
                                     mapped_read = true;
                                 }

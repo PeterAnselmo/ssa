@@ -12,6 +12,7 @@ private:
     
     char* _description;
     char* _seq;
+    char* _rev_comp;
     char* _qual;
     char* _gapped_seq;
 
@@ -23,6 +24,7 @@ public:
     Read(){
         _description = NULL;
         _seq = NULL;
+        _rev_comp = NULL;
         _qual = NULL;
         _gapped_seq = NULL;
 
@@ -33,11 +35,13 @@ public:
     Read(const Read &rhs){
         _description = NULL;
         _seq = NULL;
+        _rev_comp = NULL;
         _qual = NULL;
         _gapped_seq = NULL;
 
         set_description(rhs._description);
-        set_seq(rhs._seq);
+        set_seq(rhs._seq, false);
+        set_rev_comp(rhs._rev_comp);
         set_qual(rhs._qual);
         set_gapped_seq(rhs._gapped_seq);
 
@@ -105,51 +109,49 @@ public:
     char* rev_substr(int pos, int length) const {
         char *sub = (char *)malloc(length+1);
         check_ptr(sub);
-        char *rev = rev_comp();
-        memcpy(sub, &rev[pos], length);
-        free(rev);
+
+        memcpy(sub, &_rev_comp[pos], length);
         sub[length] = '\0';
         return sub;
     }
 
     char* rev_comp() const{
-        char *rev = (char *)malloc(sizeof(char)*(size()+1));
-        check_ptr(rev);
-
-        for(unsigned int i=0; i <size(); ++i){
-            int pos = size()-1-i;
-            switch(_seq[pos]){
-                case 'A':
-                    rev[i] = 'T';
-                break;
-                case 'T':
-                    rev[i] = 'A';
-                break;
-                case 'C':
-                    rev[i] = 'G';
-                break;
-                case 'G':
-                    rev[i] = 'C';
-                break;
-                case 'N':
-                    rev[i] = 'N';
-                break;
-            }
-        }
-        rev[size()] = '\0';
-        return rev;
+        return _rev_comp;
     }
 
     const char* seq() const{
         return _seq;
     }
 
-    void set_rev_comp(){
-        char* rev = rev_comp();
-        strcpy(_seq, rev);
-        free(rev);
-        //todo - set reversed qual scores
-        //reverse(_qual.begin(), _qual.end());
+    void compute_rev_comp(){
+        if(_rev_comp == NULL){
+            _rev_comp = (char*)malloc(size()+1);
+        } else {
+            _rev_comp = (char*)realloc(_rev_comp, size()+1);
+        }
+        check_ptr(_rev_comp);
+
+        for(unsigned int i=0; i <size(); ++i){
+            int pos = size()-1-i;
+            switch(_seq[pos]){
+                case 'A':
+                    _rev_comp[i] = 'T';
+                break;
+                case 'T':
+                    _rev_comp[i] = 'A';
+                break;
+                case 'C':
+                    _rev_comp[i] = 'G';
+                break;
+                case 'G':
+                    _rev_comp[i] = 'C';
+                break;
+                case 'N':
+                    _rev_comp[i] = 'N';
+                break;
+            }
+        }
+        _rev_comp[size()] = '\0';
     }
 
     void set_description(const char *new_description){
@@ -189,7 +191,18 @@ public:
         strncpy(_qual, new_qual, strlen(new_qual)+1);
     }
 
-    void set_seq(const char* new_seq){
+    void set_rev_comp(const char* new_rev_comp){
+        if(_rev_comp == NULL){
+            _rev_comp = (char*)malloc(strlen(new_rev_comp)+1);
+        } else {
+            _rev_comp = (char*)realloc(_rev_comp, strlen(new_rev_comp)+1);
+        }
+        check_ptr(_rev_comp);
+
+        strncpy(_rev_comp, new_rev_comp, strlen(new_rev_comp)+1);
+    }
+
+    void set_seq(const char* new_seq, bool set_rev_comp = true){
         if(_seq == NULL){
             _seq = (char *)malloc(strlen(new_seq)+1);
         } else {
@@ -198,6 +211,9 @@ public:
         check_ptr(_seq);
 
         strncpy(_seq, new_seq, strlen(new_seq)+1);
+        if( set_rev_comp ){
+            compute_rev_comp();
+        }
     }
 
     unsigned int size() const {
@@ -216,6 +232,12 @@ public:
     char* substr(int pos) const {
         int length = size()-pos;
         return substr(pos, length);
+    }
+
+    void swap_rev_comp(){
+        char* temp = _seq;
+        _seq = _rev_comp;
+        _rev_comp = temp;
     }
 
     bool trim(int num_bases = 2){
@@ -268,7 +290,8 @@ public:
         free_strings();
 
         set_description(rhs._description);
-        set_seq(rhs._seq);
+        set_seq(rhs._seq, false);
+        set_rev_comp(rhs._rev_comp);
         set_qual(rhs._qual);
         set_gapped_seq(rhs._gapped_seq);
 
@@ -292,6 +315,10 @@ private:
         if(_seq != NULL){
             free(_seq);
             _seq = NULL;
+        }
+        if(_rev_comp != NULL){
+            free(_rev_comp);
+            _rev_comp = NULL;
         }
         if(_qual != NULL){
             free(_qual);

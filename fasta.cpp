@@ -38,7 +38,7 @@ public:
         int num_lines = ceil(static_cast<double>(_seq.size())/FASTA_LINE_WIDTH);
 
         for(int i=0; i<num_lines; ++i){
-            fprintf(fh, "%s", _seq.substr(i * FASTA_LINE_WIDTH, FASTA_LINE_WIDTH).c_str());
+            fprintf(fh, "%s\n", _seq.substr(i * FASTA_LINE_WIDTH, FASTA_LINE_WIDTH).c_str());
         }
     }
 
