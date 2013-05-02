@@ -11,16 +11,30 @@ using namespace std;
 
 class SWMatrix {
 private:
+    //matrix to contain scores.
     int **h;
+
     Contig* c1;
     Contig* c2;
+
+    //size of the matrix.  Width will be the size of seq1 & height will be size of seq2
     int height;
     int width;
-    int max_h, max_w; //coordinate of the highest score in matrix
+
+    //coordinate of the highest score in matrix (only last row/column considered (Global matching))
+    int max_h, max_w; 
+
+    //These are the overlapping portions of the sequence that overlap with gaps (-) added after alignment
     char* _gapped_seq1;
     char* _gapped_seq2;
+
+    //this is the flattened version of the gapped sequences, with all bases filled, and 
+    //SNPs chosen based on which sequence had the higher quality
     char* _merged_seq;
     char* _merged_qual;
+
+    //this is the merged sequence with flanking sequence before and after the match
+    //from the two reads combined into one long read.
     char* _complete_seq;
     char* _complete_qual;
 
@@ -125,17 +139,16 @@ public:
 
     //Traceback the path from the bottom right to the top left of the matrix
     void merge_seqs(){
-        //these will hold the sequences with "-" in gaps
         //we'll allocate the worst case scenario (length of both strings) to avoid the need to reallocate
-        _gapped_seq1 = (char*)malloc(width+height+1);
-        _gapped_seq2 = (char*)malloc(width+height+1);
-        _merged_seq = (char*)malloc(width+height+1);
-        _merged_qual = (char*)malloc(width+height+1);
+        _gapped_seq1 = (char*)malloc(max_w+max_h+1);
+        _gapped_seq2 = (char*)malloc(max_w+max_h+1);
+        _merged_seq = (char*)malloc(max_w+max_h+1);
+        _merged_qual = (char*)malloc(max_w+max_h+1);
         _complete_seq = (char*)malloc(width+height+1);
         _complete_qual = (char*)malloc(width+height+1);
 
         //this will be the position of the gapped sequence as we assign
-        int current_position = width+height;
+        int current_position = max_w+max_h;
         
         //x & y will trace the path from lower right to top left
         //currently gives preferences as follows: match/mismatch, deletion, insertion
@@ -160,7 +173,7 @@ public:
                 _merged_seq[current_position] = c1->seq()[x];
 
                 int temp_qual = c1->qual()[x] + c2->qual()[y] - QUAL_OFFSET;
-                if(temp_qual > 126){ temp_qual = 126; }
+                if(temp_qual > MAX_QUAL){ temp_qual = MAX_QUAL; }
                 _merged_qual[current_position] = temp_qual;
 
                 if(DEBUGGING3){ printf("Traceback: Diagonal Match, %cvs%c, %cvs%c, final qual: %c\n",
@@ -249,7 +262,7 @@ public:
         }
 
         //move all backtracked sequences to start of their array
-        int new_length = width + height - current_position;
+        int new_length = max_w + max_h - current_position;
         ++current_position;
         memmove(&_gapped_seq1[0], &_gapped_seq1[current_position], new_length);
         _gapped_seq1[new_length] = '\0';
