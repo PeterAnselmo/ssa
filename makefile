@@ -1,5 +1,5 @@
 #CC = g++ -g -O0 -fopenmp -Wall #debugging
-CC = g++ -O3 -fopenmp -Wall
+CC = g++ -O1 -fopenmp -Wall
 all:ssa
 #tests:tests.cpp read.cu sw_matrix.cpp contig.cu fastqfile.cu fasta.cu assembly.cu samfile.cpp
 #	$(CC) -o tests tests.cpp

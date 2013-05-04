@@ -87,15 +87,25 @@ public:
     }
 
     char* gapped_substr(int pos, int length) const {
-        char *sub = (char *)malloc(sizeof(char)*(length+1));
+        char *sub = (char*)malloc(length+1);
         check_ptr(sub);
         memcpy(sub, &_gapped_seq[pos], length);
         sub[length] = '\0';
         return sub;
     }
     char* gapped_substr(int pos) const {
-        int length = size() - pos;
+        int length = strlen(_gapped_seq) - pos;
         return gapped_substr(pos, length);
+    }
+
+    void init_gapped_seq(){
+        int length = strlen(_seq)+1;
+        if(_gapped_seq == NULL){
+            _gapped_seq = (char*)malloc(length);
+        } else {
+            _gapped_seq = (char*)realloc(_gapped_seq, length);
+        }
+        memcpy(_gapped_seq, &_seq[0], length);
     }
 
     unsigned int position(){
@@ -104,6 +114,15 @@ public:
 
     const char* qual() const{
         return _qual;
+    }
+
+    char* qual_substr(int pos, int length) const {
+        char *sub = (char *)malloc(length+1);
+        check_ptr(sub);
+
+        memcpy(sub, &_qual[pos], length);
+        sub[length] = '\0';
+        return sub;
     }
 
     char* rev_substr(int pos, int length) const {
@@ -203,14 +222,16 @@ public:
     }
 
     void set_seq(const char* new_seq, bool set_rev_comp = true){
+        int length = strlen(new_seq);
         if(_seq == NULL){
-            _seq = (char *)malloc(strlen(new_seq)+1);
+            _seq = (char*)malloc(length+1);
         } else {
-            _seq = (char *)realloc(_seq, strlen(new_seq)+1);
+            _seq = (char*)realloc(_seq, length+1);
         }
         check_ptr(_seq);
 
-        strncpy(_seq, new_seq, strlen(new_seq)+1);
+        strncpy(_seq, new_seq, length+1);
+        //_seq[length] = '\0';
         if( set_rev_comp ){
             compute_rev_comp();
         }
@@ -242,6 +263,7 @@ public:
 
     bool trim(int num_bases = 2){
         char *new_seq;
+        char *new_qual;
 
         //trim left side
         unsigned int start_pos = num_bases; 
@@ -261,10 +283,14 @@ public:
             return false;
         }
 
+
         new_seq = substr(start_pos, new_size);
+        new_qual = qual_substr(start_pos, new_size);
         free(_seq);
+        free(_qual);
         _seq = new_seq;
-        new_seq = NULL;
+        _qual = new_qual;
+        compute_rev_comp();
         return true;
     }
 

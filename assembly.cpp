@@ -98,7 +98,7 @@ public:
                         char *read_substr = read->substr(0,compare_size);
                         char *contig_substr = c.substr(i,compare_size);
                         if(DEBUGGING2){
-                            printf("Considering overlap: %s | %s\n", contig_substr, read_substr);
+                            printf("Considering overlap: c%s | r%s\n", contig_substr, read_substr);
                         }
                         if( !read->assembled() && strcmp(contig_substr, read_substr) == 0){
                             #pragma omp critical(assem_perfect)
@@ -112,7 +112,7 @@ public:
                         free(read_substr);
                         char *read_rev_substr = read->rev_substr(0,compare_size);
                         if(DEBUGGING2){
-                            printf("Considering overlap: %s | %s\n", contig_substr, read_rev_substr);
+                            printf("Considering overlap: c%s | r%s\n", contig_substr, read_rev_substr);
                         }
                         if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             #pragma omp critical(assem_perfect)
@@ -137,7 +137,7 @@ public:
                         char *read_substr = read->substr(i,compare_size);
                         char *contig_substr = c.substr(0,compare_size);
                         if(DEBUGGING2){
-                            printf("Considering overlap: %s | %s\n", read_substr, contig_substr);
+                            printf("Considering overlap: r%s | c%s\n", read_substr, contig_substr);
                         }
                         if( !read->assembled() && strcmp(read_substr, contig_substr) == 0 ){
                             #pragma omp critical(assem_perfect)
@@ -149,9 +149,9 @@ public:
                             }//end mutex
                         }
                         free(read_substr);
-                        char *read_rev_substr = read->rev_substr(0,compare_size);
+                        char *read_rev_substr = read->rev_substr(i,compare_size);
                         if(DEBUGGING2){
-                            printf("Considering overlap: %s | %s\n", read_rev_substr, contig_substr);
+                            printf("Considering overlap: r%s | c%s\n", read_rev_substr, contig_substr);
                         }
                         if( !read->assembled() && strcmp(contig_substr, read_rev_substr) == 0 ){
                             #pragma omp critical(assem_perfect)

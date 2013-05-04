@@ -223,10 +223,15 @@ public:
             if(read->assembled() && read->contig() == _id){
                 int overlap = distance - read->position();
                 if( overlap > 0){
-                    char *gapped_substr = read->gapped_substr(overlap);
-                    read->set_gapped_seq(gapped_substr);
-                    free(gapped_substr);
-                    read->set_position(0);
+                    //if all that's left of the read should be removed
+                    if((unsigned int)overlap > read->gapped_size()){
+                        read->unassemble();
+                    } else {
+                        char *gapped_substr = read->gapped_substr(overlap);
+                        read->set_gapped_seq(gapped_substr);
+                        free(gapped_substr);
+                        read->set_position(0);
+                    }
                 } else {
                     read->set_position(read->position() - distance);
                 }
